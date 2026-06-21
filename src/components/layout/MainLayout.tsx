@@ -3,7 +3,7 @@ import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../features/auth/hooks/useAuth';
 import { UserRole } from '../../features/auth/constants/userRole';
 import { formatRoleLabel } from '../../features/auth/utils/formatRoleLabel';
-import { LayoutDashboard, Users, LogOut, Settings, User } from 'lucide-react';
+import { LayoutDashboard, Users, LogOut, Settings, User, FileText, Mail } from 'lucide-react';
 import { ChangePasswordModal } from '../../features/auth/components/ChangePasswordModal';
 
 export const MainLayout: React.FC = () => {
@@ -47,6 +47,34 @@ export const MainLayout: React.FC = () => {
             >
               <Users className="w-5 h-5" />
               User Management
+            </NavLink>
+          )}
+
+          {(role === UserRole.FINANCE_ASSOCIATE || role === UserRole.FINANCE_MANAGER) && (
+            <NavLink
+              to="/purchase-orders"
+              className={({ isActive }) =>
+                `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                  isActive ? 'bg-slate-800 text-white' : 'hover:bg-slate-800/50 hover:text-white'
+                }`
+              }
+            >
+              <FileText className="w-5 h-5" />
+              Upload POs
+            </NavLink>
+          )}
+
+          {role === UserRole.FINANCE_MANAGER && (
+            <NavLink
+              to="/mail-monitoring"
+              className={({ isActive }) =>
+                `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                  isActive ? 'bg-slate-800 text-white' : 'hover:bg-slate-800/50 hover:text-white'
+                }`
+              }
+            >
+              <Mail className="w-5 h-5" />
+              Mail Monitoring
             </NavLink>
           )}
         </nav>
