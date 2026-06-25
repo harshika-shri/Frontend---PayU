@@ -1,52 +1,42 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useState } from 'react';
 import toast from 'react-hot-toast';
 import { purchaseOrderService } from '../services/purchaseOrderService';
-import type { PurchaseOrderListItem } from '../types/purchaseOrder.types';
+import type { PurchaseOrderListResponse } from '../types/purchaseOrder.types';
 
-export const usePurchaseOrders = () => {
-  const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrderListItem[]>([]);
-  const [total, setTotal] = useState(0);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isUploading, setIsUploading] = useState(false);
+export const PO_QUERY_KEY = ['purchase-orders'] as const;
 
-  const fetchPurchaseOrders = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      const data = await purchaseOrderService.listPurchaseOrders();
-      setPurchaseOrders(data.items);
-      setTotal(data.total);
-    } catch {
-      toast.error('Failed to load purchase orders');
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
+export const usePurchaseOrders = (page = 1, pageSize = 20) => {
+  const offset = (page - 1) * pageSize;
 
-  useEffect(() => {
-    fetchPurchaseOrders();
-  }, [fetchPurchaseOrders]);
+  return useQuery<PurchaseOrderListResponse>({
+    queryKey: [...PO_QUERY_KEY, page, pageSize],
+    queryFn: () => purchaseOrderService.listPurchaseOrders(pageSize, offset),
+  });
+};
 
-  const uploadPurchaseOrder = async (file: File) => {
-    setIsUploading(true);
-    try {
-      const result = await purchaseOrderService.uploadPurchaseOrder(file);
-      toast.success(`PO ${result.po_number} uploaded successfully`);
-      await fetchPurchaseOrders();
-      return result;
-    } catch {
-      toast.error('Failed to upload purchase order');
-      return null;
-    } finally {
-      setIsUploading(false);
-    }
-  };
+export const useUploadPurchaseOrder = () => {
+  const queryClient = useQueryClient();
+  const [uploadProgress, setUploadProgress] = useState(0);
+
+  const mutation = useMutation({
+    mutationFn: (file: File) =>
+      purchaseOrderService.uploadPurchaseOrder(file, setUploadProgress),
+    onSuccess: (data) => {
+      toast.success(`PO ${data.po_number} uploaded — ${data.line_items_saved} line items saved`);
+      queryClient.invalidateQueries({ queryKey: PO_QUERY_KEY });
+    },
+    onError: (err: unknown) => {
+      const detail =
+        (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+      toast.error(detail || 'Upload failed. Please check the file and try again.');
+    },
+    onSettled: () => setUploadProgress(0),
+  });
 
   return {
-    purchaseOrders,
-    total,
-    isLoading,
-    isUploading,
-    fetchPurchaseOrders,
-    uploadPurchaseOrder,
+    upload: mutation.mutateAsync,
+    isPending: mutation.isPending,
+    uploadProgress,
   };
 };

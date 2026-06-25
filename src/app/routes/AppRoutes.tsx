@@ -8,11 +8,12 @@ import { UserRole } from '../../features/auth/constants/userRole';
 
 // Feature pages
 import { DashboardPage } from '../../features/dashboard/pages/DashboardPage';
-import { PurchaseOrdersView } from '../../features/purchase-orders/components/PurchaseOrdersView';
+import { PurchaseOrdersPage } from '../../features/purchase-orders/components/PurchaseOrdersPage';
+import { InvoiceUploadPage } from '../../features/invoices/pages/InvoiceUploadPage';
+import { InvoiceProcessingPage } from '../../features/invoices/pages/InvoiceProcessingPage';
+import { ExtractionReviewPage } from '../../features/extraction-review/pages/ExtractionReviewPage';
 import { MailMonitoringView } from '../../features/mail-monitoring/components/MailMonitoringView';
 import { UserManagementPage } from '../../features/admin/pages/UserManagementPage';
-import { InvoiceUploadPage } from '../../features/invoices/pages/InvoiceUploadPage';
-import { ExtractionReviewPage } from '../../features/extraction-review/pages/ExtractionReviewPage';
 import { FinanceAssociatePage } from '../../features/finance-associate/pages/FinanceAssociatePage';
 import { FinanceManagerPage } from '../../features/finance-manager/pages/FinanceManagerPage';
 import { NotificationsPage } from '../../features/notifications/pages/NotificationsPage';
@@ -22,12 +23,12 @@ import { SettingsPage } from '../../features/settings/pages/SettingsPage';
 export const AppRoutes: React.FC = () => {
   return (
     <Routes>
-      {/* Public routes */}
+      {/* Public */}
       <Route element={<AuthLayout />}>
         <Route path="/login" element={<LoginForm />} />
       </Route>
 
-      {/* Protected routes */}
+      {/* Protected */}
       <Route
         path="/"
         element={
@@ -37,22 +38,16 @@ export const AppRoutes: React.FC = () => {
         }
       >
         <Route index element={<Navigate to="/dashboard" replace />} />
-
-        {/* Dashboard — all roles */}
         <Route path="dashboard" element={<DashboardPage />} />
-
-        {/* Notifications — all roles */}
         <Route path="notifications" element={<NotificationsPage />} />
-
-        {/* Settings — all roles */}
         <Route path="settings" element={<SettingsPage />} />
 
-        {/* Documents */}
+        {/* Document Intake */}
         <Route
           path="purchase-orders"
           element={
             <ProtectedRoute allowedRoles={[UserRole.FINANCE_ASSOCIATE, UserRole.FINANCE_MANAGER]}>
-              <PurchaseOrdersView />
+              <PurchaseOrdersPage />
             </ProtectedRoute>
           }
         />
@@ -67,7 +62,25 @@ export const AppRoutes: React.FC = () => {
         />
 
         <Route
+          path="invoices/processing"
+          element={
+            <ProtectedRoute allowedRoles={[UserRole.FINANCE_MANAGER]}>
+              <InvoiceProcessingPage />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Extraction Review — list + detail */}
+        <Route
           path="extraction-review"
+          element={
+            <ProtectedRoute allowedRoles={[UserRole.FINANCE_ASSOCIATE, UserRole.FINANCE_MANAGER]}>
+              <ExtractionReviewListPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="extraction-review/:invoiceId"
           element={
             <ProtectedRoute allowedRoles={[UserRole.FINANCE_ASSOCIATE, UserRole.FINANCE_MANAGER]}>
               <ExtractionReviewPage />
@@ -84,7 +97,6 @@ export const AppRoutes: React.FC = () => {
             </ProtectedRoute>
           }
         />
-
         <Route
           path="finance/manager"
           element={
@@ -103,7 +115,6 @@ export const AppRoutes: React.FC = () => {
             </ProtectedRoute>
           }
         />
-
         <Route
           path="reports"
           element={
@@ -112,8 +123,6 @@ export const AppRoutes: React.FC = () => {
             </ProtectedRoute>
           }
         />
-
-        {/* Admin */}
         <Route
           path="admin/users"
           element={
@@ -124,8 +133,12 @@ export const AppRoutes: React.FC = () => {
         />
       </Route>
 
-      {/* 404 fallback */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
+};
+
+// Inline extraction review list — redirect to processing for now
+const ExtractionReviewListPage: React.FC = () => {
+  return <InvoiceProcessingPage />;
 };
