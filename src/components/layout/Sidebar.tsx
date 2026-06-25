@@ -4,6 +4,7 @@ import {
   LayoutDashboard,
   FileText,
   Upload,
+  Activity,
   ClipboardCheck,
   BarChart3,
   Bell,
@@ -42,7 +43,7 @@ const navGroups: NavGroup[] = [
     ],
   },
   {
-    label: 'Documents',
+    label: 'Document Intake',
     items: [
       {
         label: 'Purchase Orders',
@@ -56,6 +57,17 @@ const navGroups: NavGroup[] = [
         href: '/invoices/upload',
         roles: [UserRole.FINANCE_ASSOCIATE, UserRole.FINANCE_MANAGER],
       },
+      {
+        label: 'Invoice Processing',
+        icon: <Activity className="h-4 w-4" />,
+        href: '/invoices/processing',
+        roles: [UserRole.FINANCE_MANAGER],
+      },
+    ],
+  },
+  {
+    label: 'Extraction',
+    items: [
       {
         label: 'Extraction Review',
         icon: <ClipboardCheck className="h-4 w-4" />,
@@ -179,6 +191,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
                 <NavLink
                   key={item.href}
                   to={item.href}
+                  end={item.href === '/extraction-review'}
                   title={collapsed ? item.label : undefined}
                   className={({ isActive }) =>
                     cn(

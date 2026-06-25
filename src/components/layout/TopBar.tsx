@@ -13,15 +13,19 @@ const routeMeta: Record<string, { title: string; breadcrumbs: { label: string; h
   },
   '/purchase-orders': {
     title: 'Purchase Orders',
-    breadcrumbs: [{ label: 'Documents' }, { label: 'Purchase Orders' }],
+    breadcrumbs: [{ label: 'Document Intake' }, { label: 'Purchase Orders' }],
   },
   '/invoices/upload': {
     title: 'Invoice Upload',
-    breadcrumbs: [{ label: 'Documents' }, { label: 'Invoice Upload' }],
+    breadcrumbs: [{ label: 'Document Intake' }, { label: 'Invoice Upload' }],
+  },
+  '/invoices/processing': {
+    title: 'Invoice Processing',
+    breadcrumbs: [{ label: 'Document Intake' }, { label: 'Invoice Processing' }],
   },
   '/extraction-review': {
     title: 'Extraction Review',
-    breadcrumbs: [{ label: 'Documents' }, { label: 'Extraction Review' }],
+    breadcrumbs: [{ label: 'Extraction' }, { label: 'Extraction Review' }],
   },
   '/finance/associate': {
     title: 'Finance Associate',
@@ -61,10 +65,21 @@ export const TopBar: React.FC<TopBarProps> = ({ onChangePassword }) => {
   const { role, logout } = useAuth();
   const location = useLocation();
 
-  const meta = routeMeta[location.pathname] ?? {
-    title: 'PayU Finance',
-    breadcrumbs: [{ label: 'Home' }],
-  };
+  const extractionReviewMatch = /^\/extraction-review\/[^/]+$/.test(location.pathname);
+  const meta = routeMeta[location.pathname] ?? (
+    extractionReviewMatch
+      ? {
+          title: 'Review Extraction',
+          breadcrumbs: [
+            { label: 'Extraction', href: '/extraction-review' },
+            { label: 'Review' },
+          ],
+        }
+      : {
+          title: 'PayU Finance',
+          breadcrumbs: [{ label: 'Home' }],
+        }
+  );
 
   const handleLogout = async () => {
     await logout();
