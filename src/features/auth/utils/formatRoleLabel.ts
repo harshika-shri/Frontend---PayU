@@ -12,6 +12,6 @@ export const formatRoleLabel = (role: UserRole | string | null) => {
     case 'finance_manager':
       return 'Finance Manager';
     default:
-      return role;
+      return role ?? 'User';
   }
 };

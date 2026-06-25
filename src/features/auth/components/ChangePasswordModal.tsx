@@ -1,7 +1,25 @@
-import React, { useState } from 'react';
-import { authService } from '../services/authService';
-import { X, Loader2, KeyRound } from 'lucide-react';
+import React from 'react';
+import { useForm } from 'react-hook-form';
+import { z } from 'zod';
+import { zodResolver } from '@hookform/resolvers/zod';
 import toast from 'react-hot-toast';
+import { authService } from '../services/authService';
+import { Modal, ModalFooter } from '../../../components/ui/Modal';
+import { Button } from '../../../components/ui/Button';
+import { Input } from '../../../components/ui/Input';
+
+const schema = z
+  .object({
+    oldPassword: z.string().min(1, 'Current password is required'),
+    newPassword: z.string().min(8, 'New password must be at least 8 characters'),
+    confirmPassword: z.string().min(1, 'Please confirm your new password'),
+  })
+  .refine((d) => d.newPassword === d.confirmPassword, {
+    path: ['confirmPassword'],
+    message: 'Passwords do not match',
+  });
+
+type FormValues = z.infer<typeof schema>;
 
 interface ChangePasswordModalProps {
   isOpen: boolean;
@@ -9,101 +27,62 @@ interface ChangePasswordModalProps {
 }
 
 export const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({ isOpen, onClose }) => {
-  const [oldPassword, setOldPassword] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors, isSubmitting },
+  } = useForm<FormValues>({ resolver: zodResolver(schema) });
 
-  if (!isOpen) return null;
+  const handleClose = () => {
+    reset();
+    onClose();
+  };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (newPassword !== confirmPassword) {
-      toast.error('New passwords do not match');
-      return;
-    }
-    
-    setIsSubmitting(true);
+  const onSubmit = async (values: FormValues) => {
     try {
-      await authService.changePassword(oldPassword, newPassword);
+      await authService.changePassword(values.oldPassword, values.newPassword);
       toast.success('Password changed successfully');
-      onClose();
-      setOldPassword('');
-      setNewPassword('');
-      setConfirmPassword('');
-    } catch (error: any) {
-      toast.error(error.response?.data?.detail || 'Failed to change password');
-    } finally {
-      setIsSubmitting(false);
+      handleClose();
+    } catch (error: unknown) {
+      const detail = (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+      toast.error(detail || 'Failed to change password. Please try again.');
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-        <div className="flex justify-between items-center p-6 border-b border-slate-100">
-          <div className="flex items-center gap-2">
-            <KeyRound className="w-5 h-5 text-slate-500" />
-            <h3 className="text-lg font-semibold text-slate-900">Change Password</h3>
-          </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-colors">
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-        
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          <div className="space-y-1">
-            <label className="text-sm font-medium text-slate-700">Current Password</label>
-            <input
-              required
-              type="password"
-              value={oldPassword}
-              onChange={(e) => setOldPassword(e.target.value)}
-              className="block w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900 focus:ring-2 focus:ring-slate-900 focus:border-transparent sm:text-sm"
-            />
-          </div>
-          
-          <div className="space-y-1">
-            <label className="text-sm font-medium text-slate-700">New Password</label>
-            <input
-              required
-              type="password"
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              className="block w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900 focus:ring-2 focus:ring-slate-900 focus:border-transparent sm:text-sm"
-            />
-          </div>
-
-          <div className="space-y-1">
-            <label className="text-sm font-medium text-slate-700">Confirm New Password</label>
-            <input
-              required
-              type="password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              className="block w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900 focus:ring-2 focus:ring-slate-900 focus:border-transparent sm:text-sm"
-            />
-          </div>
-
-          <div className="pt-4 flex justify-end gap-3">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-slate-900 border border-transparent rounded-lg hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-900 transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
-            >
-              {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-              {isSubmitting ? 'Updating...' : 'Update Password'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+    <Modal open={isOpen} onClose={handleClose} title="Change Password" size="sm">
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
+        <Input
+          label="Current Password"
+          type="password"
+          placeholder="Enter current password"
+          error={errors.oldPassword?.message}
+          {...register('oldPassword')}
+        />
+        <Input
+          label="New Password"
+          type="password"
+          placeholder="Min. 8 characters"
+          error={errors.newPassword?.message}
+          {...register('newPassword')}
+        />
+        <Input
+          label="Confirm New Password"
+          type="password"
+          placeholder="Re-enter new password"
+          error={errors.confirmPassword?.message}
+          {...register('confirmPassword')}
+        />
+        <ModalFooter>
+          <Button type="button" variant="outline" size="sm" onClick={handleClose}>
+            Cancel
+          </Button>
+          <Button type="submit" size="sm" loading={isSubmitting}>
+            Update Password
+          </Button>
+        </ModalFooter>
+      </form>
+    </Modal>
   );
 };
