@@ -14,6 +14,11 @@ import {
   ChevronLeft,
   ChevronRight,
   Landmark,
+  CheckCircle2,
+  AlertTriangle,
+  TrendingUp,
+  Banknote,
+  XCircle,
 } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { UserRole } from '../../features/auth/constants/userRole';
@@ -24,12 +29,15 @@ interface NavItem {
   icon: React.ReactNode;
   href: string;
   roles?: string[];
+  end?: boolean;
 }
 
 interface NavGroup {
   label: string;
   items: NavItem[];
 }
+
+const CC_ROLES = [UserRole.FINANCE_ASSOCIATE, UserRole.FINANCE_MANAGER];
 
 const navGroups: NavGroup[] = [
   {
@@ -39,6 +47,48 @@ const navGroups: NavGroup[] = [
         label: 'Dashboard',
         icon: <LayoutDashboard className="h-4 w-4" />,
         href: '/dashboard',
+      },
+    ],
+  },
+  {
+    label: 'Command Center',
+    items: [
+      {
+        label: 'Command Center',
+        icon: <LayoutDashboard className="h-4 w-4" />,
+        href: '/command-center',
+        roles: CC_ROLES,
+        end: true,
+      },
+      {
+        label: 'Ready for Approval',
+        icon: <CheckCircle2 className="h-4 w-4" />,
+        href: '/command-center/ready-for-approval',
+        roles: CC_ROLES,
+      },
+      {
+        label: 'Needs Review',
+        icon: <AlertTriangle className="h-4 w-4" />,
+        href: '/command-center/needs-review',
+        roles: CC_ROLES,
+      },
+      {
+        label: 'Escalated',
+        icon: <TrendingUp className="h-4 w-4" />,
+        href: '/command-center/escalated',
+        roles: CC_ROLES,
+      },
+      {
+        label: 'Ready to Pay',
+        icon: <Banknote className="h-4 w-4" />,
+        href: '/command-center/ready-to-pay',
+        roles: CC_ROLES,
+      },
+      {
+        label: 'Rejected',
+        icon: <XCircle className="h-4 w-4" />,
+        href: '/command-center/rejected',
+        roles: CC_ROLES,
       },
     ],
   },
@@ -191,7 +241,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
                 <NavLink
                   key={item.href}
                   to={item.href}
-                  end={item.href === '/extraction-review'}
+                  end={item.end ?? item.href === '/extraction-review'}
                   title={collapsed ? item.label : undefined}
                   className={({ isActive }) =>
                     cn(
