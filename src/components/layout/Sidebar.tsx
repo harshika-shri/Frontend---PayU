@@ -19,6 +19,8 @@ import {
   TrendingUp,
   Banknote,
   XCircle,
+  Briefcase,
+  Inbox,
 } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { UserRole } from '../../features/auth/constants/userRole';
@@ -127,18 +129,31 @@ const navGroups: NavGroup[] = [
     ],
   },
   {
-    label: 'Workflow',
+    label: 'Finance Manager',
     items: [
       {
-        label: 'Finance Associate',
+        label: 'Manager Overview',
         icon: <Landmark className="h-4 w-4" />,
-        href: '/finance/associate',
-        roles: [UserRole.FINANCE_ASSOCIATE, UserRole.FINANCE_MANAGER],
+        href: '/finance-manager',
+        roles: [UserRole.FINANCE_MANAGER],
+        end: true,
       },
       {
-        label: 'Finance Manager',
-        icon: <BarChart3 className="h-4 w-4" />,
-        href: '/finance/manager',
+        label: 'My Escalated',
+        icon: <TrendingUp className="h-4 w-4" />,
+        href: '/finance-manager/my-escalated',
+        roles: [UserRole.FINANCE_MANAGER],
+      },
+      {
+        label: 'Unassigned',
+        icon: <Inbox className="h-4 w-4" />,
+        href: '/finance-manager/unassigned',
+        roles: [UserRole.FINANCE_MANAGER],
+      },
+      {
+        label: 'My Claimed',
+        icon: <Briefcase className="h-4 w-4" />,
+        href: '/finance-manager/my-claimed',
         roles: [UserRole.FINANCE_MANAGER],
       },
     ],

@@ -55,9 +55,25 @@ const routeMeta: Record<string, { title: string; breadcrumbs: { label: string; h
     title: 'Finance Associate',
     breadcrumbs: [{ label: 'Workflow' }, { label: 'Finance Associate' }],
   },
-  '/finance/manager': {
+  '/finance-manager': {
     title: 'Finance Manager',
-    breadcrumbs: [{ label: 'Workflow' }, { label: 'Finance Manager' }],
+    breadcrumbs: [{ label: 'Finance Manager' }],
+  },
+  '/finance-manager/my-escalated': {
+    title: 'My Escalated',
+    breadcrumbs: [{ label: 'Finance Manager', href: '/finance-manager' }, { label: 'My Escalated' }],
+  },
+  '/finance-manager/unassigned': {
+    title: 'Unassigned Queue',
+    breadcrumbs: [{ label: 'Finance Manager', href: '/finance-manager' }, { label: 'Unassigned' }],
+  },
+  '/finance-manager/my-claimed': {
+    title: 'My Claimed',
+    breadcrumbs: [{ label: 'Finance Manager', href: '/finance-manager' }, { label: 'My Claimed' }],
+  },
+  '/finance-manager/rejected': {
+    title: 'Rejected',
+    breadcrumbs: [{ label: 'Finance Manager', href: '/finance-manager' }, { label: 'Rejected' }],
   },
   '/mail-monitoring': {
     title: 'Mail Monitoring',
@@ -90,9 +106,30 @@ export const TopBar: React.FC<TopBarProps> = ({ onChangePassword }) => {
   const location = useLocation();
 
   const commandCenterInvoiceMatch = /^\/command-center\/invoice\/[^/]+$/.test(location.pathname);
+  const clarificationMatch = /^\/command-center\/invoice\/[^/]+\/clarification$/.test(location.pathname);
+  const rejectionMatch = /^\/command-center\/invoice\/[^/]+\/rejection$/.test(location.pathname);
   const extractionReviewMatch = /^\/extraction-review\/[^/]+$/.test(location.pathname);
+
   const meta = routeMeta[location.pathname] ?? (
-    commandCenterInvoiceMatch
+    clarificationMatch
+      ? {
+          title: 'Request Clarification',
+          breadcrumbs: [
+            { label: 'Command Center', href: '/command-center' },
+            { label: 'Invoice Review' },
+            { label: 'Clarification' },
+          ],
+        }
+      : rejectionMatch
+      ? {
+          title: 'Reject Invoice',
+          breadcrumbs: [
+            { label: 'Command Center', href: '/command-center' },
+            { label: 'Invoice Review' },
+            { label: 'Rejection' },
+          ],
+        }
+      : commandCenterInvoiceMatch
       ? {
           title: 'Invoice Review',
           breadcrumbs: [

@@ -18,7 +18,10 @@ import { ExtractionReviewPage } from '../../features/extraction-review/pages/Ext
 import { MailMonitoringView } from '../../features/mail-monitoring/components/MailMonitoringView';
 import { UserManagementPage } from '../../features/admin/pages/UserManagementPage';
 import { FinanceAssociatePage } from '../../features/finance-associate/pages/FinanceAssociatePage';
-import { FinanceManagerPage } from '../../features/finance-manager/pages/FinanceManagerPage';
+import { FinanceManagerWorkspace } from '../../features/finance-manager/pages/FinanceManagerWorkspace';
+import { ManagerQueuePage } from '../../features/finance-manager/pages/ManagerQueuePage';
+import { ClarificationWorkflowPage } from '../../features/command-center/pages/ClarificationWorkflowPage';
+import { RejectionWorkflowPage } from '../../features/command-center/pages/RejectionWorkflowPage';
 import { NotificationsPage } from '../../features/notifications/pages/NotificationsPage';
 import { ReportsPage } from '../../features/reports/pages/ReportsPage';
 import { SettingsPage } from '../../features/settings/pages/SettingsPage';
@@ -149,20 +152,72 @@ export const AppRoutes: React.FC = () => {
           }
         />
 
-        {/* Workflow */}
+        {/* Workflow pages */}
+        <Route
+          path="command-center/invoice/:invoiceId/clarification"
+          element={
+            <ProtectedRoute allowedRoles={[UserRole.FINANCE_ASSOCIATE, UserRole.FINANCE_MANAGER]}>
+              <ClarificationWorkflowPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="command-center/invoice/:invoiceId/rejection"
+          element={
+            <ProtectedRoute allowedRoles={[UserRole.FINANCE_ASSOCIATE, UserRole.FINANCE_MANAGER]}>
+              <RejectionWorkflowPage />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Finance Manager workspace */}
+        <Route
+          path="finance-manager"
+          element={
+            <ProtectedRoute allowedRoles={[UserRole.FINANCE_MANAGER]}>
+              <FinanceManagerWorkspace />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="finance-manager/my-escalated"
+          element={
+            <ProtectedRoute allowedRoles={[UserRole.FINANCE_MANAGER]}>
+              <ManagerQueuePage queue="my-escalated" />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="finance-manager/unassigned"
+          element={
+            <ProtectedRoute allowedRoles={[UserRole.FINANCE_MANAGER]}>
+              <ManagerQueuePage queue="unassigned" />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="finance-manager/my-claimed"
+          element={
+            <ProtectedRoute allowedRoles={[UserRole.FINANCE_MANAGER]}>
+              <ManagerQueuePage queue="my-claimed" />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="finance-manager/rejected"
+          element={
+            <ProtectedRoute allowedRoles={[UserRole.FINANCE_MANAGER]}>
+              <ManagerQueuePage queue="rejected" />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Legacy placeholder route */}
         <Route
           path="finance/associate"
           element={
             <ProtectedRoute allowedRoles={[UserRole.FINANCE_ASSOCIATE, UserRole.FINANCE_MANAGER]}>
               <FinanceAssociatePage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="finance/manager"
-          element={
-            <ProtectedRoute allowedRoles={[UserRole.FINANCE_MANAGER]}>
-              <FinanceManagerPage />
             </ProtectedRoute>
           }
         />

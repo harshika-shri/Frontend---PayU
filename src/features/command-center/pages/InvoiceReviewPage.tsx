@@ -8,6 +8,7 @@ import { PageSpinner } from '../../../components/ui/Spinner';
 import { ErrorState } from '../../../components/ui/ErrorState';
 import { DocumentViewer } from '../../extraction-review/components/DocumentViewer';
 import { SummaryTab } from '../components/tabs/SummaryTab';
+import { InvoiceActionsPanel } from '../components/InvoiceActionsPanel';
 import { ExtractionTab } from '../components/tabs/ExtractionTab';
 import { ValidationTab } from '../components/tabs/ValidationTab';
 import { POCandidatesTab } from '../components/tabs/POCandidatesTab';
@@ -173,11 +174,18 @@ export const InvoiceReviewPage: React.FC = () => {
           {/* Tab content */}
           <div className="flex-1 min-h-0 overflow-y-auto scrollbar-thin pt-4 pr-1">
             {activeTab === 'summary' && (
-              <SummaryTab
-                header={header}
-                validation={validation}
-                confidenceCount={{ total: extraction.confidence_scores.length, flagged: flaggedCount }}
-              />
+              <>
+                <SummaryTab
+                  header={header}
+                  validation={validation}
+                  confidenceCount={{ total: extraction.confidence_scores.length, flagged: flaggedCount }}
+                />
+                <InvoiceActionsPanel
+                  invoiceId={invoiceId}
+                  header={header}
+                  bucket={bucket}
+                />
+              </>
             )}
             {activeTab === 'extraction' && <ExtractionTab extraction={extraction} />}
             {activeTab === 'validation' && <ValidationTab validation={validation} />}

@@ -15,6 +15,7 @@ export interface DecodedToken {
 export interface AuthContextType {
   isAuthenticated: boolean;
   role: UserRole | null;
+  userId: string | null;
   login: (username: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   isLoading: boolean;

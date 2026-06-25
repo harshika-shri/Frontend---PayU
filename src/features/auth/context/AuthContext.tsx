@@ -11,12 +11,14 @@ export const AuthContext = createContext<AuthContextType | undefined>(undefined)
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [role, setRole] = useState<AuthContextType['role']>(null);
+  const [userId, setUserId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
   const initAuth = (token: string) => {
     try {
       const decoded = jwtDecode<DecodedToken>(token);
       setRole(normalizeRole(decoded.role));
+      setUserId(decoded.sub);
       setIsAuthenticated(true);
     } catch (error) {
       console.error('Invalid token', error);
@@ -24,6 +26,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       Cookies.remove('refresh_token');
       setIsAuthenticated(false);
       setRole(null);
+      setUserId(null);
     }
   };
 
@@ -37,8 +40,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const login = async (username: string, password: string) => {
     const data = await authService.login(username, password);
-    Cookies.set('access_token', data.access_token, { secure: window.location.protocol === 'https:', sameSite: 'lax' });
-    Cookies.set('refresh_token', data.refresh_token, { secure: window.location.protocol === 'https:', sameSite: 'lax' });
+    Cookies.set('access_token', data.access_token, {
+      secure: window.location.protocol === 'https:',
+      sameSite: 'lax',
+    });
+    Cookies.set('refresh_token', data.refresh_token, {
+      secure: window.location.protocol === 'https:',
+      sameSite: 'lax',
+    });
     initAuth(data.access_token);
   };
 
@@ -55,10 +64,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     Cookies.remove('refresh_token');
     setIsAuthenticated(false);
     setRole(null);
+    setUserId(null);
   };
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated, role, login, logout, isLoading }}>
+    <AuthContext.Provider value={{ isAuthenticated, role, userId, login, logout, isLoading }}>
       {children}
     </AuthContext.Provider>
   );
