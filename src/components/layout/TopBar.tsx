@@ -11,6 +11,30 @@ const routeMeta: Record<string, { title: string; breadcrumbs: { label: string; h
     title: 'Dashboard',
     breadcrumbs: [{ label: 'Dashboard' }],
   },
+  '/command-center': {
+    title: 'Command Center',
+    breadcrumbs: [{ label: 'Command Center' }],
+  },
+  '/command-center/ready-for-approval': {
+    title: 'Ready for Approval',
+    breadcrumbs: [{ label: 'Command Center', href: '/command-center' }, { label: 'Ready for Approval' }],
+  },
+  '/command-center/needs-review': {
+    title: 'Needs Review',
+    breadcrumbs: [{ label: 'Command Center', href: '/command-center' }, { label: 'Needs Review' }],
+  },
+  '/command-center/escalated': {
+    title: 'Escalated',
+    breadcrumbs: [{ label: 'Command Center', href: '/command-center' }, { label: 'Escalated' }],
+  },
+  '/command-center/ready-to-pay': {
+    title: 'Ready to Pay',
+    breadcrumbs: [{ label: 'Command Center', href: '/command-center' }, { label: 'Ready to Pay' }],
+  },
+  '/command-center/rejected': {
+    title: 'Rejected',
+    breadcrumbs: [{ label: 'Command Center', href: '/command-center' }, { label: 'Rejected' }],
+  },
   '/purchase-orders': {
     title: 'Purchase Orders',
     breadcrumbs: [{ label: 'Document Intake' }, { label: 'Purchase Orders' }],
@@ -65,9 +89,18 @@ export const TopBar: React.FC<TopBarProps> = ({ onChangePassword }) => {
   const { role, logout } = useAuth();
   const location = useLocation();
 
+  const commandCenterInvoiceMatch = /^\/command-center\/invoice\/[^/]+$/.test(location.pathname);
   const extractionReviewMatch = /^\/extraction-review\/[^/]+$/.test(location.pathname);
   const meta = routeMeta[location.pathname] ?? (
-    extractionReviewMatch
+    commandCenterInvoiceMatch
+      ? {
+          title: 'Invoice Review',
+          breadcrumbs: [
+            { label: 'Command Center', href: '/command-center' },
+            { label: 'Invoice Review' },
+          ],
+        }
+      : extractionReviewMatch
       ? {
           title: 'Review Extraction',
           breadcrumbs: [

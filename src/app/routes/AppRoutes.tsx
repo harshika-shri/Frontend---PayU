@@ -8,6 +8,9 @@ import { UserRole } from '../../features/auth/constants/userRole';
 
 // Feature pages
 import { DashboardPage } from '../../features/dashboard/pages/DashboardPage';
+import { CommandCenterDashboard } from '../../features/command-center/pages/CommandCenterDashboard';
+import { InvoiceBucketPage } from '../../features/command-center/pages/InvoiceBucketPage';
+import { InvoiceReviewPage } from '../../features/command-center/pages/InvoiceReviewPage';
 import { PurchaseOrdersPage } from '../../features/purchase-orders/components/PurchaseOrdersPage';
 import { InvoiceUploadPage } from '../../features/invoices/pages/InvoiceUploadPage';
 import { InvoiceProcessingPage } from '../../features/invoices/pages/InvoiceProcessingPage';
@@ -41,6 +44,64 @@ export const AppRoutes: React.FC = () => {
         <Route path="dashboard" element={<DashboardPage />} />
         <Route path="notifications" element={<NotificationsPage />} />
         <Route path="settings" element={<SettingsPage />} />
+
+        {/* Command Center */}
+        <Route
+          path="command-center"
+          element={
+            <ProtectedRoute allowedRoles={[UserRole.FINANCE_ASSOCIATE, UserRole.FINANCE_MANAGER]}>
+              <CommandCenterDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="command-center/ready-for-approval"
+          element={
+            <ProtectedRoute allowedRoles={[UserRole.FINANCE_ASSOCIATE, UserRole.FINANCE_MANAGER]}>
+              <InvoiceBucketPage bucket="ready-for-approval" />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="command-center/needs-review"
+          element={
+            <ProtectedRoute allowedRoles={[UserRole.FINANCE_ASSOCIATE, UserRole.FINANCE_MANAGER]}>
+              <InvoiceBucketPage bucket="needs-review" />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="command-center/escalated"
+          element={
+            <ProtectedRoute allowedRoles={[UserRole.FINANCE_ASSOCIATE, UserRole.FINANCE_MANAGER]}>
+              <InvoiceBucketPage bucket="escalated" />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="command-center/ready-to-pay"
+          element={
+            <ProtectedRoute allowedRoles={[UserRole.FINANCE_ASSOCIATE, UserRole.FINANCE_MANAGER]}>
+              <InvoiceBucketPage bucket="ready-to-pay" />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="command-center/rejected"
+          element={
+            <ProtectedRoute allowedRoles={[UserRole.FINANCE_ASSOCIATE, UserRole.FINANCE_MANAGER]}>
+              <InvoiceBucketPage bucket="rejected" />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="command-center/invoice/:invoiceId"
+          element={
+            <ProtectedRoute allowedRoles={[UserRole.FINANCE_ASSOCIATE, UserRole.FINANCE_MANAGER]}>
+              <InvoiceReviewPage />
+            </ProtectedRoute>
+          }
+        />
 
         {/* Document Intake */}
         <Route
