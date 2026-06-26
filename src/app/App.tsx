@@ -1,10 +1,30 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter } from 'react-router-dom';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider } from '../features/auth/context/AuthContext';
 import { AppRoutes } from './routes/AppRoutes';
 import { queryClient } from '../lib/queryClient';
+import { sseManager } from '../lib/sseManager';
+import { useAuth } from '../features/auth/hooks/useAuth';
+
+// Inner component that has access to the auth context
+const AppInner: React.FC = () => {
+  const { isAuthenticated } = useAuth();
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      sseManager.connect();
+    } else {
+      sseManager.disconnect();
+    }
+    return () => {
+      sseManager.disconnect();
+    };
+  }, [isAuthenticated]);
+
+  return <AppRoutes />;
+};
 
 export const App: React.FC = () => {
   return (
@@ -33,7 +53,7 @@ export const App: React.FC = () => {
               },
             }}
           />
-          <AppRoutes />
+          <AppInner />
         </BrowserRouter>
       </AuthProvider>
     </QueryClientProvider>

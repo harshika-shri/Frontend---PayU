@@ -1,10 +1,14 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useLocation, Link } from 'react-router-dom';
-import { Bell, LogOut, Settings, KeyRound, Search } from 'lucide-react';
+import { Bell, LogOut, Settings, KeyRound, Search, Wifi, WifiOff } from 'lucide-react';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { useAuth } from '../../features/auth/hooks/useAuth';
 import { formatRoleLabel } from '../../features/auth/utils/formatRoleLabel';
 import { Breadcrumb } from '../ui/Breadcrumb';
+import { NotificationDrawer } from '../../features/notifications/components/NotificationDrawer';
+import { useNotificationUnreadCount, useNotificationSSE, useRealtimeUpdates } from '../../features/notifications/hooks/useNotifications';
+import { useSSEConnection } from '../../hooks/useSSEConnection';
+import { cn } from '../../utils/cn';
 
 const routeMeta: Record<string, { title: string; breadcrumbs: { label: string; href?: string }[] }> = {
   '/dashboard': {
@@ -87,6 +91,26 @@ const routeMeta: Record<string, { title: string; breadcrumbs: { label: string; h
     title: 'Reports',
     breadcrumbs: [{ label: 'System' }, { label: 'Reports' }],
   },
+  '/reports/summary': {
+    title: 'Invoice Summary',
+    breadcrumbs: [{ label: 'Reports', href: '/reports' }, { label: 'Invoice Summary' }],
+  },
+  '/reports/vendor': {
+    title: 'Vendor Performance',
+    breadcrumbs: [{ label: 'Reports', href: '/reports' }, { label: 'Vendor Performance' }],
+  },
+  '/reports/associate': {
+    title: 'Associate Performance',
+    breadcrumbs: [{ label: 'Reports', href: '/reports' }, { label: 'Associate Performance' }],
+  },
+  '/reports/manager': {
+    title: 'Manager Performance',
+    breadcrumbs: [{ label: 'Reports', href: '/reports' }, { label: 'Manager Performance' }],
+  },
+  '/reports/processing': {
+    title: 'Processing Statistics',
+    breadcrumbs: [{ label: 'Reports', href: '/reports' }, { label: 'Processing Statistics' }],
+  },
   '/admin/users': {
     title: 'User Management',
     breadcrumbs: [{ label: 'Admin' }, { label: 'User Management' }],
@@ -104,6 +128,12 @@ interface TopBarProps {
 export const TopBar: React.FC<TopBarProps> = ({ onChangePassword }) => {
   const { role, logout } = useAuth();
   const location = useLocation();
+  const [notifOpen, setNotifOpen] = useState(false);
+  const { data: countData } = useNotificationUnreadCount();
+  const unreadCount = countData?.count ?? 0;
+  const sseStatus = useSSEConnection();
+  useNotificationSSE();
+  useRealtimeUpdates();
 
   const commandCenterInvoiceMatch = /^\/command-center\/invoice\/[^/]+$/.test(location.pathname);
   const clarificationMatch = /^\/command-center\/invoice\/[^/]+\/clarification$/.test(location.pathname);
@@ -182,12 +212,38 @@ export const TopBar: React.FC<TopBarProps> = ({ onChangePassword }) => {
           <kbd className="ml-auto font-mono text-[10px] bg-white border border-[var(--color-border)] px-1 rounded">⌘K</kbd>
         </button>
 
+        {/* SSE connection status dot */}
+        {sseStatus === 'disconnected' || sseStatus === 'error' ? (
+          <div
+            title="Live updates disconnected"
+            className="flex h-7 w-7 items-center justify-center rounded text-amber-500"
+          >
+            <WifiOff className="h-3.5 w-3.5" />
+          </div>
+        ) : sseStatus === 'connected' ? (
+          <div title="Live updates active" className="flex h-7 w-7 items-center justify-center rounded text-[var(--color-success)]">
+            <Wifi className="h-3.5 w-3.5" />
+          </div>
+        ) : null}
+
         {/* Notification bell */}
-        <button className="relative h-8 w-8 flex items-center justify-center rounded hover:bg-[var(--color-muted)] text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)] transition-colors">
+        <button
+          onClick={() => setNotifOpen(true)}
+          aria-label="Open notifications"
+          className={cn(
+            'relative h-8 w-8 flex items-center justify-center rounded transition-colors',
+            'hover:bg-[var(--color-muted)] text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)]',
+          )}
+        >
           <Bell className="h-4 w-4" />
-          {/* Notification dot */}
-          <span className="absolute top-1.5 right-1.5 h-1.5 w-1.5 rounded-full bg-[var(--color-primary)]" />
+          {unreadCount > 0 && (
+            <span className="absolute top-1 right-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-[var(--color-primary)] px-1 text-[9px] font-bold text-white leading-none">
+              {unreadCount > 99 ? '99+' : unreadCount}
+            </span>
+          )}
         </button>
+
+        <NotificationDrawer open={notifOpen} onClose={() => setNotifOpen(false)} />
 
         {/* User dropdown */}
         <DropdownMenu.Root>
