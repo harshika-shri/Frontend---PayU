@@ -1,88 +1,153 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
-import { FileText, Upload } from 'lucide-react';
-import { usePurchaseOrders } from '../../purchase-orders/hooks/usePurchaseOrders';
+import { useNavigate } from 'react-router-dom';
+import {
+  CheckCircle2,
+  AlertTriangle,
+  TrendingUp,
+  Banknote,
+  XCircle,
+  Upload,
+  ArrowRight,
+} from 'lucide-react';
+import { PageHeader } from '../../../components/ui/PageHeader';
+import { Button } from '../../../components/ui/Button';
+import { Skeleton } from '../../../components/ui/Skeleton';
+import { ErrorState } from '../../../components/ui/ErrorState';
+import { useDashboardSummary } from '../../command-center/hooks/useDashboard';
+
+const BUCKET_CARDS = [
+  {
+    key: 'ready_for_approval' as const,
+    label: 'Ready for Approval',
+    href: '/command-center/ready-for-approval',
+    icon: <CheckCircle2 className="h-5 w-5 text-[var(--color-success)]" />,
+    iconBg: 'bg-[var(--color-success-muted)]',
+    description: 'Awaiting your review and approval.',
+  },
+  {
+    key: 'needs_review' as const,
+    label: 'Needs Review',
+    href: '/command-center/needs-review',
+    icon: <AlertTriangle className="h-5 w-5 text-[var(--color-warning)]" />,
+    iconBg: 'bg-[var(--color-warning-muted)]',
+    description: 'Flagged for manual review.',
+  },
+  {
+    key: 'escalated' as const,
+    label: 'Escalated',
+    href: '/command-center/escalated',
+    icon: <TrendingUp className="h-5 w-5 text-[var(--color-info)]" />,
+    iconBg: 'bg-[var(--color-info-muted)]',
+    description: 'Sent to Finance Manager.',
+  },
+  {
+    key: 'ready_to_pay' as const,
+    label: 'Ready to Pay',
+    href: '/command-center/ready-to-pay',
+    icon: <Banknote className="h-5 w-5 text-[var(--color-primary)]" />,
+    iconBg: 'bg-[var(--color-primary-muted)]',
+    description: 'Approved, awaiting payment.',
+  },
+  {
+    key: 'rejected' as const,
+    label: 'Rejected',
+    href: '/command-center/rejected',
+    icon: <XCircle className="h-5 w-5 text-[var(--color-destructive)]" />,
+    iconBg: 'bg-[var(--color-destructive-muted)]',
+    description: 'Invoices that could not be processed.',
+  },
+] as const;
+
+type SummaryKey = (typeof BUCKET_CARDS)[number]['key'];
 
 export const FinanceAssociateDashboard: React.FC = () => {
-  const { data, isLoading } = usePurchaseOrders(1, 20);
+  const navigate = useNavigate();
+  const { data, isLoading, isError, refetch } = useDashboardSummary();
 
-  const items = data?.items ?? [];
-  const total = data?.total ?? 0;
-  const openCount = items.filter((po) => po.status === 'open').length;
+  if (isError) {
+    return <ErrorState kind="generic" onRetry={() => refetch()} />;
+  }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Dashboard</h1>
-          <p className="mt-1 text-sm text-slate-500">
-            View and track all purchase orders.
-          </p>
-        </div>
-        <Link
-          to="/purchase-orders"
-          className="inline-flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium text-white bg-slate-900 border border-transparent rounded-lg hover:bg-slate-800 transition-colors"
-        >
-          <Upload className="w-4 h-4" />
-          Upload PO
-        </Link>
+    <div>
+      <PageHeader
+        title="Dashboard"
+        description="Your invoice pipeline at a glance."
+        actions={
+          <Button
+            size="sm"
+            onClick={() => navigate('/invoices/upload')}
+            leftIcon={<Upload className="h-4 w-4" />}
+          >
+            Upload Invoice
+          </Button>
+        }
+      />
+
+      {/* Pipeline bucket cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4 mb-8">
+        {BUCKET_CARDS.map(({ key, label, href, icon, iconBg, description }) => (
+          <button
+            key={key}
+            onClick={() => navigate(href)}
+            className="group text-left rounded-lg border border-[var(--color-border)] bg-white p-4 hover:shadow-[var(--shadow-sm)] hover:border-slate-300 transition-all"
+          >
+            <div className="flex items-start justify-between gap-2 mb-3">
+              <div
+                className={`flex h-9 w-9 items-center justify-center rounded-lg ${iconBg} flex-shrink-0`}
+              >
+                {icon}
+              </div>
+              {isLoading ? (
+                <Skeleton className="h-7 w-8 rounded" />
+              ) : (
+                <span className="text-2xl font-semibold text-[var(--color-foreground)] tabular-nums">
+                  {data?.[key as SummaryKey] ?? 0}
+                </span>
+              )}
+            </div>
+            <p className="text-xs font-semibold text-[var(--color-foreground)]">{label}</p>
+            <p className="mt-0.5 text-[11px] text-[var(--color-muted-foreground)] leading-relaxed">
+              {description}
+            </p>
+            <div className="mt-3 flex items-center gap-1 text-[11px] font-medium text-[var(--color-primary)] opacity-0 group-hover:opacity-100 transition-opacity">
+              View queue <ArrowRight className="h-3 w-3" />
+            </div>
+          </button>
+        ))}
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
-          <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Total POs</p>
-          <p className="mt-2 text-3xl font-semibold text-slate-900">{isLoading ? '—' : total}</p>
+      {/* Quick actions */}
+      <div className="border border-[var(--color-border)] rounded-lg bg-white p-5">
+        <h2 className="text-xs font-semibold uppercase tracking-widest text-[var(--color-muted-foreground)] mb-4">
+          Quick Actions
+        </h2>
+        <div className="flex flex-wrap gap-3">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => navigate('/invoices/upload')}
+            leftIcon={<Upload className="h-3.5 w-3.5" />}
+          >
+            Upload Invoice
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => navigate('/purchase-orders')}
+            leftIcon={<ArrowRight className="h-3.5 w-3.5" />}
+          >
+            Purchase Orders
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => navigate('/command-center')}
+            leftIcon={<CheckCircle2 className="h-3.5 w-3.5" />}
+          >
+            Command Center
+          </Button>
         </div>
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
-          <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Open POs</p>
-          <p className="mt-2 text-3xl font-semibold text-slate-900">{isLoading ? '—' : openCount}</p>
-        </div>
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
-          <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Other Status</p>
-          <p className="mt-2 text-3xl font-semibold text-slate-900">{isLoading ? '—' : total - openCount}</p>
-        </div>
-      </div>
-
-      <div>
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-sm font-semibold text-slate-700 uppercase tracking-wide">
-            Recent Purchase Orders
-          </h2>
-          <Link to="/purchase-orders" className="text-xs text-blue-600 hover:underline">
-            View all
-          </Link>
-        </div>
-        {isLoading ? (
-          <div className="text-sm text-slate-500 py-4">Loading…</div>
-        ) : items.length === 0 ? (
-          <div className="flex flex-col items-center gap-2 py-10 text-center bg-white rounded-xl border border-slate-200">
-            <FileText className="h-8 w-8 text-slate-300" />
-            <p className="text-sm text-slate-500">No purchase orders uploaded yet.</p>
-          </div>
-        ) : (
-          <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-slate-200 bg-slate-50">
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">PO #</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">Date</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {items.slice(0, 5).map((po) => (
-                  <tr key={po.id} className="border-b border-slate-100 last:border-0">
-                    <td className="px-4 py-3 font-medium text-slate-900">{po.po_number}</td>
-                    <td className="px-4 py-3 text-slate-500">{po.po_date}</td>
-                    <td className="px-4 py-3">
-                      <span className="text-xs capitalize">{po.status.replace(/_/g, ' ')}</span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
       </div>
     </div>
   );

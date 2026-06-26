@@ -34,6 +34,7 @@ interface DataTableProps<T> {
   className?: string;
   headerActions?: React.ReactNode;
   rowKey?: (row: T) => string;
+  hidePagination?: boolean;
 }
 
 interface SortState {
@@ -59,6 +60,7 @@ export function DataTable<T extends object>({
   className,
   headerActions,
   rowKey,
+  hidePagination = false,
 }: DataTableProps<T>) {
   const [sort, setSort] = useState<SortState | null>(null);
   const [search, setSearch] = useState('');
@@ -169,7 +171,7 @@ export function DataTable<T extends object>({
         )}
       </div>
 
-      {!loading && !error && total != null && onPageChange && (
+      {!loading && !error && !hidePagination && total != null && onPageChange && (
         <Pagination
           page={page}
           total={total}
