@@ -3,6 +3,10 @@ import { StatusBadge } from '../../../../components/ui/StatusBadge';
 import { Badge } from '../../../../components/ui/Badge';
 import { formatDate, formatDateTime, formatCurrency } from '../../../../utils/formatters';
 import type { InvoiceHeaderResponse, InvoiceValidationResponse } from '../../types/invoiceReview.types';
+import {
+  getValidationOutcomeBadgeVariant,
+  getValidationOutcomeLabel,
+} from '../../utils/validationOutcomeUtils';
 
 interface SummaryTabProps {
   header: InvoiceHeaderResponse;
@@ -33,18 +37,10 @@ export const SummaryTab: React.FC<SummaryTabProps> = ({
         )}
         {validation.validation_outcome && (
           <Badge
-            variant={
-              validation.validation_outcome === 'resolved' ||
-              validation.validation_outcome === 'approved'
-                ? 'success'
-                : validation.validation_outcome === 'pending_review' ||
-                  validation.validation_outcome === 'ambiguous'
-                ? 'warning'
-                : 'destructive'
-            }
+            variant={getValidationOutcomeBadgeVariant(validation.validation_outcome)}
             dot
           >
-            {validation.validation_outcome.replace(/_/g, ' ')}
+            {getValidationOutcomeLabel(validation.validation_outcome)}
           </Badge>
         )}
         {confidenceCount.flagged > 0 && (

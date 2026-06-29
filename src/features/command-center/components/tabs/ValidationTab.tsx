@@ -2,6 +2,7 @@ import React from 'react';
 import { CheckCircle2, XCircle, AlertTriangle, MinusCircle } from 'lucide-react';
 import { cn } from '../../../../utils/cn';
 import { ValidationIssuesPanel } from './ValidationIssuesPanel';
+import { getValidationOutcomeLabel } from '../../utils/validationOutcomeUtils';
 import type { InvoiceValidationResponse, ValidationIssueDetails } from '../../types/invoiceReview.types';
 
 interface ValidationTabProps {
@@ -135,7 +136,7 @@ export const ValidationTab: React.FC<ValidationTabProps> = ({ validation }) => {
         )}
         {validation.validation_outcome && (
           <span className="ml-auto text-xs font-semibold uppercase tracking-wide text-[var(--color-muted-foreground)]">
-            Outcome: {validation.validation_outcome.replace(/_/g, ' ')}
+            Outcome: {getValidationOutcomeLabel(validation.validation_outcome)}
           </span>
         )}
       </div>

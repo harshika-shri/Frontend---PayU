@@ -11,6 +11,10 @@ import { useManagerQueue } from '../hooks/useFinanceManager';
 import { useTakeOwnership } from '../../command-center/hooks/useWorkflowActions';
 import { useAuth } from '../../auth/hooks/useAuth';
 import { formatDate, formatDateTime, formatCurrency } from '../../../utils/formatters';
+import {
+  getValidationOutcomeBadgeVariant,
+  getValidationOutcomeLabel,
+} from '../../command-center/utils/validationOutcomeUtils';
 import type { InvoiceListQueryParams } from '../../command-center/types/dashboard.types';
 import type { DashboardInvoiceListItem } from '../../command-center/types/dashboard.types';
 import type { Column } from '../../../components/ui/DataTable';
@@ -145,14 +149,10 @@ export const ManagerQueuePage: React.FC<ManagerQueuePageProps> = ({ queue }) => 
         render: (row) =>
           row.validation_outcome ? (
             <Badge
-              variant={
-                row.validation_outcome === 'resolved' ? 'success'
-                  : row.validation_outcome === 'pending_review' ? 'warning'
-                  : 'secondary'
-              }
+              variant={getValidationOutcomeBadgeVariant(row.validation_outcome)}
               dot
             >
-              {row.validation_outcome.replace(/_/g, ' ')}
+              {getValidationOutcomeLabel(row.validation_outcome)}
             </Badge>
           ) : (
             <span className="text-[var(--color-muted-foreground)]">—</span>

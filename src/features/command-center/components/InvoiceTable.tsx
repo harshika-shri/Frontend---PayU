@@ -6,6 +6,11 @@ import { StatusBadge } from '../../../components/ui/StatusBadge';
 import { Badge } from '../../../components/ui/Badge';
 import { Button } from '../../../components/ui/Button';
 import { formatDate, formatDateTime, formatCurrency } from '../../../utils/formatters';
+import {
+  getValidationOutcomeBadgeVariant,
+  getValidationOutcomeLabel,
+  isResolvedValidationOutcome,
+} from '../utils/validationOutcomeUtils';
 import type { DashboardInvoiceListItem } from '../types/dashboard.types';
 import type { Column } from '../../../components/ui/DataTable';
 
@@ -95,20 +100,10 @@ const makeColumns = (
       render: (row) =>
         row.validation_outcome ? (
           <Badge
-            variant={
-              row.validation_outcome === 'resolved' || row.validation_outcome === 'approved'
-                ? 'success'
-                : row.validation_outcome === 'pending_review' ||
-                    row.validation_outcome === 'ambiguous'
-                  ? 'warning'
-                  : row.validation_outcome === 'rejected' ||
-                      row.validation_outcome === 'unresolved'
-                    ? 'destructive'
-                    : 'secondary'
-            }
+            variant={getValidationOutcomeBadgeVariant(row.validation_outcome)}
             dot
           >
-            {row.validation_outcome.replace(/_/g, ' ')}
+            {getValidationOutcomeLabel(row.validation_outcome)}
           </Badge>
         ) : (
           <span className="text-[var(--color-muted-foreground)]">—</span>

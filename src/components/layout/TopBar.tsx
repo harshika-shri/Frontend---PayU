@@ -87,25 +87,13 @@ const routeMeta: Record<string, { title: string; breadcrumbs: { label: string; h
     breadcrumbs: [{ label: 'Notifications' }],
   },
   '/reports': { title: 'Reports', breadcrumbs: [{ label: 'Reports' }] },
-  '/reports/summary': {
-    title: 'Invoice Summary',
-    breadcrumbs: [{ label: 'Reports', href: '/reports' }, { label: 'Invoice Summary' }],
+  '/reports/invoices': {
+    title: 'Invoice Processing Report',
+    breadcrumbs: [{ label: 'Reports', href: '/reports' }, { label: 'Invoice Processing' }],
   },
-  '/reports/vendor': {
-    title: 'Vendor Performance',
-    breadcrumbs: [{ label: 'Reports', href: '/reports' }, { label: 'Vendor Performance' }],
-  },
-  '/reports/associate': {
-    title: 'Associate Performance',
+  '/reports/finance-associates': {
+    title: 'Finance Associate Performance',
     breadcrumbs: [{ label: 'Reports', href: '/reports' }, { label: 'Associate Performance' }],
-  },
-  '/reports/manager': {
-    title: 'Manager Performance',
-    breadcrumbs: [{ label: 'Reports', href: '/reports' }, { label: 'Manager Performance' }],
-  },
-  '/reports/processing': {
-    title: 'Processing Statistics',
-    breadcrumbs: [{ label: 'Reports', href: '/reports' }, { label: 'Processing Statistics' }],
   },
   '/admin/users': {
     title: 'User Management',
@@ -194,14 +182,11 @@ const RIGHT_NAV: NavItemConfig[] = [
   {
     id: 'reports',
     label: 'Reports',
-    roles: [UserRole.FINANCE_MANAGER],
+    roles: [UserRole.FINANCE_ASSOCIATE, UserRole.FINANCE_MANAGER],
     icon: <BarChart3 className="h-3.5 w-3.5" />,
     children: [
-      { label: 'Invoice Summary', href: '/reports/summary' },
-      { label: 'Vendor Performance', href: '/reports/vendor' },
-      { label: 'Associate Performance', href: '/reports/associate' },
-      { label: 'Manager Performance', href: '/reports/manager' },
-      { label: 'Processing Statistics', href: '/reports/processing' },
+      { label: 'Invoice Processing', href: '/reports/invoices' },
+      { label: 'Associate Performance', href: '/reports/finance-associates' },
     ],
   },
 ];

@@ -32,6 +32,11 @@ import { LineAllocationTab } from '../components/tabs/LineAllocationTab';
 import { InvoiceActionsPanel } from '../components/InvoiceActionsPanel';
 import { useInvoiceReview } from '../hooks/useInvoiceReview';
 import { countCriticalIssues, hasIssuesRequiringDraft } from '../utils/validationIssueUtils';
+import {
+  getValidationOutcomeBadgeVariant,
+  getValidationOutcomeLabel,
+  isResolvedValidationOutcome,
+} from '../utils/validationOutcomeUtils';
 import { formatDate, formatCurrency } from '../../../utils/formatters';
 import { env } from '../../../config/env';
 import { cn } from '../../../utils/cn';
@@ -124,15 +129,11 @@ const POInfoPanel: React.FC<{
     lineAllocation.candidate_groups[0];
   const allocItems = allocGroup?.items ?? [];
 
-  // Mirrors backend `is_ready_for_approval()`:
-  //   invoice_status == UNDER_REVIEW  AND  validation_outcome == APPROVED
-  // When true, all line match indicators are rendered green — the validator
-  // already signed off on any "approximate" matches.
+  // Mirrors backend `is_ready_for_approval()` — only fully resolved validations
+  // show all line match indicators as green.
   const normStatus = norm(invoiceStatus);
-  const normOutcome = norm(validationOutcome);
   const isApproved =
-    normOutcome === 'approved' ||
-    normOutcome === 'resolved' ||
+    isResolvedValidationOutcome(validationOutcome) ||
     APPROVED_STATUSES.has(normStatus);
 
   return (
@@ -608,15 +609,10 @@ export const InvoiceReviewPage: React.FC = () => {
               )}
               {workflow.validation_outcome && (
                 <Badge
-                  variant={
-                    workflow.validation_outcome === 'resolved' ||
-                    workflow.validation_outcome === 'approved'
-                      ? 'success'
-                      : 'warning'
-                  }
+                  variant={getValidationOutcomeBadgeVariant(workflow.validation_outcome)}
                   dot
                 >
-                  {workflow.validation_outcome.replace(/_/g, ' ')}
+                  {getValidationOutcomeLabel(workflow.validation_outcome)}
                 </Badge>
               )}
               {flaggedCount > 0 && (

@@ -1,49 +1,69 @@
 import { commandCenterClient } from '../../../lib/commandCenterClient';
 import type {
-  AssociateWorkloadItem,
-  ManagerWorkloadItem,
-  ReportFilters,
-  ReportPerformanceResponse,
-  ReportSummaryResponse,
-  VendorSummaryItem,
+  AssociateReportQuery,
+  FinanceAssociatePerformanceListResponse,
+  InvoiceReportQuery,
+  InvoiceReportListResponse,
+  ReportFilterOptionsResponse,
 } from '../types/report.types';
 
-const toParams = (f: ReportFilters) =>
-  Object.fromEntries(Object.entries(f).filter(([, v]) => v != null && v !== ''));
+const toParams = (params: object) =>
+  Object.fromEntries(
+    Object.entries(params).filter(([, value]) => value != null && value !== ''),
+  );
 
 export const reportService = {
-  getSummary: async (filters: ReportFilters = {}): Promise<ReportSummaryResponse> => {
-    const r = await commandCenterClient.get<ReportSummaryResponse>('/reports/summary', {
-      params: toParams(filters),
-    });
-    return r.data;
+  getFilterOptions: async (): Promise<ReportFilterOptionsResponse> => {
+    const response = await commandCenterClient.get<ReportFilterOptionsResponse>(
+      '/reports/filter-options',
+    );
+    return response.data;
   },
 
-  getPerformance: async (filters: ReportFilters = {}): Promise<ReportPerformanceResponse> => {
-    const r = await commandCenterClient.get<ReportPerformanceResponse>('/reports/performance', {
-      params: toParams(filters),
-    });
-    return r.data;
+  listInvoices: async (
+    params: InvoiceReportQuery = {},
+  ): Promise<InvoiceReportListResponse> => {
+    const response = await commandCenterClient.get<InvoiceReportListResponse>(
+      '/reports/invoices',
+      { params: toParams(params) },
+    );
+    return response.data;
   },
 
-  getVendors: async (filters: ReportFilters = {}): Promise<VendorSummaryItem[]> => {
-    const r = await commandCenterClient.get<VendorSummaryItem[]>('/reports/vendors', {
-      params: toParams(filters),
+  exportInvoices: async (params: InvoiceReportQuery = {}): Promise<Blob> => {
+    const response = await commandCenterClient.get<Blob>('/reports/invoices/export', {
+      params: toParams(params),
+      responseType: 'blob',
     });
-    return r.data;
+    return response.data;
   },
 
-  getAssociates: async (filters: ReportFilters = {}): Promise<AssociateWorkloadItem[]> => {
-    const r = await commandCenterClient.get<AssociateWorkloadItem[]>('/reports/associates', {
-      params: toParams(filters),
-    });
-    return r.data;
+  listFinanceAssociates: async (
+    params: AssociateReportQuery = {},
+  ): Promise<FinanceAssociatePerformanceListResponse> => {
+    const response = await commandCenterClient.get<FinanceAssociatePerformanceListResponse>(
+      '/reports/finance-associates',
+      { params: toParams(params) },
+    );
+    return response.data;
   },
 
-  getManagers: async (filters: ReportFilters = {}): Promise<ManagerWorkloadItem[]> => {
-    const r = await commandCenterClient.get<ManagerWorkloadItem[]>('/reports/managers', {
-      params: toParams(filters),
+  exportFinanceAssociates: async (params: AssociateReportQuery = {}): Promise<Blob> => {
+    const response = await commandCenterClient.get<Blob>('/reports/finance-associates/export', {
+      params: toParams(params),
+      responseType: 'blob',
     });
-    return r.data;
+    return response.data;
   },
+};
+
+export const downloadReportBlob = (blob: Blob, filename: string) => {
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.URL.revokeObjectURL(url);
 };

@@ -10,6 +10,7 @@ import { useTakeOwnership } from '../hooks/useWorkflowActions';
 import { useAuth } from '../../auth/hooks/useAuth';
 import { UserRole } from '../../auth/constants/userRole';
 import type { InvoiceHeaderResponse } from '../types/invoiceReview.types';
+import { canApproveWithValidationOutcome } from '../utils/validationOutcomeUtils';
 
 const norm = (s: string | null | undefined) =>
   (s ?? '').toLowerCase().replace(/[\s-]+/g, '_');
@@ -88,12 +89,12 @@ export const InvoiceActionsPanel: React.FC<InvoiceActionsPanelProps> = ({
   const outcome = norm(header.validation_outcome);
   const backHref = bucket ? `/command-center/${bucket}` : '/command-center';
 
-  // Mirror the backend `is_ready_for_approval()`:
-  //   invoice_status == UNDER_REVIEW  AND  validation_outcome == APPROVED
-  // Also allow ESCALATED + APPROVED (escalated invoices that passed validation).
+  // Mirror backend approval eligibility:
+  //   UNDER_REVIEW + RESOLVED, or ESCALATED + RESOLVED/RECOVERED
   const showApprove =
     CAN_APPROVE.has(status) ||
-    ((status === 'under_review' || status === 'escalated') && outcome === 'approved');
+    ((status === 'under_review' || status === 'escalated') &&
+      canApproveWithValidationOutcome(outcome));
 
   // Clarify is mutually exclusive with Approve — never show both at once
   const showClarification = CAN_CLARIFY.has(status) && !showApprove;
