@@ -1,18 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  PieChart,
-  Pie,
-  Cell,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-} from 'recharts';
-import {
   CheckCircle2,
   AlertTriangle,
   TrendingUp,
@@ -29,9 +17,20 @@ import { Button } from '../../../components/ui/Button';
 import { Skeleton } from '../../../components/ui/Skeleton';
 import { ErrorState } from '../../../components/ui/ErrorState';
 import { useDashboardSummary } from '../../command-center/hooks/useDashboard';
+import {
+  useAssociateProcessingTrend,
+  useAssociateStatusDistribution,
+  useAssociateValidationBreakdown,
+} from '../hooks/useDashboardCharts';
+import {
+  AnalyticsChartCard,
+  chartHasData,
+} from './charts/AnalyticsChartCard';
+import { DonutChartView } from './charts/DonutChartView';
+import { HorizontalBarChartView } from './charts/HorizontalBarChartView';
+import { LineChartView } from './charts/LineChartView';
 import type { DashboardSummary } from '../../command-center/types/dashboard.types';
 
-// ── Palette aligned with the app design system ───────────────────────────────
 const HEX = {
   ready_for_approval: '#16a34a',
   needs_review: '#d97706',
@@ -41,12 +40,10 @@ const HEX = {
   overdue: '#9333ea',
 } as const;
 
-// ── Pipeline bucket configuration ─────────────────────────────────────────────
 const BUCKETS = [
   {
     key: 'ready_for_approval' as keyof DashboardSummary,
     label: 'Ready for Approval',
-    shortLabel: 'Ready',
     href: '/command-center/ready-for-approval',
     Icon: CheckCircle2,
     bg: 'bg-green-50',
@@ -56,7 +53,6 @@ const BUCKETS = [
   {
     key: 'needs_review' as keyof DashboardSummary,
     label: 'Needs Review',
-    shortLabel: 'Needs Review',
     href: '/command-center/needs-review',
     Icon: AlertTriangle,
     bg: 'bg-amber-50',
@@ -66,7 +62,6 @@ const BUCKETS = [
   {
     key: 'escalated' as keyof DashboardSummary,
     label: 'Escalated',
-    shortLabel: 'Escalated',
     href: '/command-center/escalated',
     Icon: TrendingUp,
     bg: 'bg-sky-50',
@@ -76,7 +71,6 @@ const BUCKETS = [
   {
     key: 'ready_to_pay' as keyof DashboardSummary,
     label: 'Approved',
-    shortLabel: 'Approved',
     href: '/command-center/ready-to-pay',
     Icon: Banknote,
     bg: 'bg-blue-50',
@@ -86,7 +80,6 @@ const BUCKETS = [
   {
     key: 'rejected' as keyof DashboardSummary,
     label: 'Rejected',
-    shortLabel: 'Rejected',
     href: '/command-center/rejected',
     Icon: XCircle,
     bg: 'bg-red-50',
@@ -96,7 +89,6 @@ const BUCKETS = [
   {
     key: 'overdue' as keyof DashboardSummary,
     label: 'Overdue',
-    shortLabel: 'Overdue',
     href: '/command-center/overdue',
     Icon: Clock,
     bg: 'bg-purple-50',
@@ -104,8 +96,6 @@ const BUCKETS = [
     hex: HEX.overdue,
   },
 ] as const;
-
-// ── Sub-components ────────────────────────────────────────────────────────────
 
 interface KpiTileProps {
   label: string;
@@ -145,55 +135,19 @@ const KpiTile: React.FC<KpiTileProps> = ({ label, value, sub, loading, accent, I
   </div>
 );
 
-const ChartTooltip = ({
-  active,
-  payload,
-  label,
-}: {
-  active?: boolean;
-  payload?: { name: string; value: number; fill?: string; color?: string }[];
-  label?: string;
-}) => {
-  if (!active || !payload?.length) return null;
-  return (
-    <div className="rounded-md border border-[var(--color-border)] bg-white px-3 py-2 shadow-md">
-      <p className="text-[11px] font-semibold text-[var(--color-foreground)] mb-1">
-        {label ?? payload[0]?.name}
-      </p>
-      {payload.map((p) => (
-        <p key={p.name} className="text-[11px]" style={{ color: p.fill ?? p.color ?? '#64748b' }}>
-          {p.value} invoices
-        </p>
-      ))}
-    </div>
-  );
-};
-
-// ── Main component ────────────────────────────────────────────────────────────
-
 export const FinanceAssociateDashboard: React.FC = () => {
   const navigate = useNavigate();
   const { data, isLoading, isError, refetch } = useDashboardSummary();
+
+  const statusChart = useAssociateStatusDistribution();
+  const validationChart = useAssociateValidationBreakdown();
+  const trendChart = useAssociateProcessingTrend();
 
   if (isError) return <ErrorState kind="generic" onRetry={() => refetch()} />;
 
   const total = data?.total ?? 0;
   const healthyCount = (data?.ready_for_approval ?? 0) + (data?.ready_to_pay ?? 0);
   const healthyPct = total > 0 ? Math.round((healthyCount / total) * 100) : 0;
-
-  // Donut chart — only non-zero slices
-  const donutData = BUCKETS.map((b) => ({
-    name: b.label,
-    value: (data?.[b.key] as number) ?? 0,
-    color: b.hex,
-  })).filter((d) => d.value > 0);
-
-  // Bar chart — all statuses
-  const barData = BUCKETS.map((b) => ({
-    name: b.shortLabel,
-    value: (data?.[b.key] as number) ?? 0,
-    fill: b.hex,
-  }));
 
   return (
     <div>
@@ -211,7 +165,6 @@ export const FinanceAssociateDashboard: React.FC = () => {
         }
       />
 
-      {/* ── KPI tiles ── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <KpiTile
           label="Total Invoices"
@@ -250,103 +203,50 @@ export const FinanceAssociateDashboard: React.FC = () => {
         />
       </div>
 
-      {/* ── Charts row ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 mb-6">
-        {/* Donut — Pipeline Distribution */}
-        <div className="lg:col-span-2 rounded-lg border border-[var(--color-border)] bg-white p-5">
-          <p className="text-xs font-semibold uppercase tracking-widest text-[var(--color-muted-foreground)] mb-1">
-            Pipeline Distribution
-          </p>
-          <p className="text-[11px] text-[var(--color-muted-foreground)] mb-4">
-            Share of invoices per status
-          </p>
+      <p className="text-xs font-semibold uppercase tracking-widest text-[var(--color-muted-foreground)] mb-3">
+        Analytics
+      </p>
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 mb-6">
+        <AnalyticsChartCard
+          title="Invoice Status Distribution"
+          description="Current workload across your assigned invoices"
+          loading={statusChart.isLoading}
+          isError={statusChart.isError}
+          onRetry={() => statusChart.refetch()}
+          empty={!statusChart.isLoading && !chartHasData(statusChart.data?.values)}
+          emptyText="No assigned invoices yet"
+          className="xl:col-span-1"
+        >
+          {statusChart.data && <DonutChartView data={statusChart.data} />}
+        </AnalyticsChartCard>
 
-          {isLoading ? (
-            <Skeleton className="h-52 w-full rounded" />
-          ) : total === 0 ? (
-            <div className="flex h-52 flex-col items-center justify-center gap-2 text-[var(--color-muted-foreground)]">
-              <FileText className="h-8 w-8 opacity-30" />
-              <p className="text-sm">No invoices yet</p>
-            </div>
-          ) : (
-            <>
-              <ResponsiveContainer width="100%" height={180}>
-                <PieChart>
-                  <Pie
-                    data={donutData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={52}
-                    outerRadius={82}
-                    dataKey="value"
-                    paddingAngle={3}
-                    strokeWidth={0}
-                  >
-                    {donutData.map((entry) => (
-                      <Cell key={entry.name} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <Tooltip content={<ChartTooltip />} />
-                </PieChart>
-              </ResponsiveContainer>
-              {/* Custom legend */}
-              <div className="flex flex-wrap gap-x-3 gap-y-1.5 mt-1 justify-center">
-                {donutData.map((d) => (
-                  <div key={d.name} className="flex items-center gap-1.5">
-                    <span
-                      className="inline-block h-2 w-2 rounded-full flex-shrink-0"
-                      style={{ backgroundColor: d.color }}
-                    />
-                    <span className="text-[10px] text-slate-500">
-                      {d.name} ({d.value})
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </>
-          )}
-        </div>
+        <AnalyticsChartCard
+          title="Validation Issues Breakdown"
+          description="Unresolved issues by validation category"
+          loading={validationChart.isLoading}
+          isError={validationChart.isError}
+          onRetry={() => validationChart.refetch()}
+          empty={!validationChart.isLoading && !chartHasData(validationChart.data?.values)}
+          emptyText="No open validation issues"
+          className="xl:col-span-1"
+        >
+          {validationChart.data && <HorizontalBarChartView data={validationChart.data} />}
+        </AnalyticsChartCard>
 
-        {/* Bar — Status Breakdown */}
-        <div className="lg:col-span-3 rounded-lg border border-[var(--color-border)] bg-white p-5">
-          <p className="text-xs font-semibold uppercase tracking-widest text-[var(--color-muted-foreground)] mb-1">
-            Status Breakdown
-          </p>
-          <p className="text-[11px] text-[var(--color-muted-foreground)] mb-4">
-            Invoice count by current status
-          </p>
-
-          {isLoading ? (
-            <Skeleton className="h-52 w-full rounded" />
-          ) : (
-            <ResponsiveContainer width="100%" height={210}>
-              <BarChart data={barData} margin={{ top: 4, right: 8, left: -20, bottom: 4 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
-                <XAxis
-                  dataKey="name"
-                  tick={{ fontSize: 10, fill: '#64748b' }}
-                  tickLine={false}
-                  axisLine={false}
-                />
-                <YAxis
-                  tick={{ fontSize: 10, fill: '#64748b' }}
-                  tickLine={false}
-                  axisLine={false}
-                  allowDecimals={false}
-                />
-                <Tooltip content={<ChartTooltip />} />
-                <Bar dataKey="value" radius={[4, 4, 0, 0]} maxBarSize={48}>
-                  {barData.map((entry) => (
-                    <Cell key={entry.name} fill={entry.fill} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          )}
-        </div>
+        <AnalyticsChartCard
+          title="My Processing Trend"
+          description="Invoices processed over the last 7 days"
+          loading={trendChart.isLoading}
+          isError={trendChart.isError}
+          onRetry={() => trendChart.refetch()}
+          empty={!trendChart.isLoading && !chartHasData(trendChart.data?.values)}
+          emptyText="No processing activity in the last 7 days"
+          className="xl:col-span-1"
+        >
+          {trendChart.data && <LineChartView data={trendChart.data} />}
+        </AnalyticsChartCard>
       </div>
 
-      {/* ── Pipeline Queue cards ── */}
       <p className="text-xs font-semibold uppercase tracking-widest text-[var(--color-muted-foreground)] mb-3">
         Invoice Queues
       </p>
@@ -380,7 +280,6 @@ export const FinanceAssociateDashboard: React.FC = () => {
         ))}
       </div>
 
-      {/* ── Quick Actions ── */}
       <div className="rounded-lg border border-[var(--color-border)] bg-white p-5">
         <p className="text-xs font-semibold uppercase tracking-widest text-[var(--color-muted-foreground)] mb-4">
           Quick Actions
