@@ -78,20 +78,15 @@ const SettingsPage = lazy(() =>
 const ReportsPage = lazy(() =>
   import('../../features/reports/pages/ReportsPage').then((m) => ({ default: m.ReportsPage })),
 );
-const InvoiceSummaryReport = lazy(() =>
-  import('../../features/reports/pages/InvoiceSummaryReport').then((m) => ({ default: m.InvoiceSummaryReport })),
+const InvoiceProcessingReportPage = lazy(() =>
+  import('../../features/reports/pages/InvoiceProcessingReportPage').then((m) => ({
+    default: m.InvoiceProcessingReportPage,
+  })),
 );
-const VendorPerformanceReport = lazy(() =>
-  import('../../features/reports/pages/VendorPerformanceReport').then((m) => ({ default: m.VendorPerformanceReport })),
-);
-const AssociatePerformanceReport = lazy(() =>
-  import('../../features/reports/pages/AssociatePerformanceReport').then((m) => ({ default: m.AssociatePerformanceReport })),
-);
-const ManagerPerformanceReport = lazy(() =>
-  import('../../features/reports/pages/ManagerPerformanceReport').then((m) => ({ default: m.ManagerPerformanceReport })),
-);
-const ProcessingStatisticsReport = lazy(() =>
-  import('../../features/reports/pages/ProcessingStatisticsReport').then((m) => ({ default: m.ProcessingStatisticsReport })),
+const FinanceAssociatePerformanceReportPage = lazy(() =>
+  import('../../features/reports/pages/FinanceAssociatePerformanceReportPage').then((m) => ({
+    default: m.FinanceAssociatePerformanceReportPage,
+  })),
 );
 
 // Admin
@@ -111,6 +106,7 @@ const NotFoundPage = lazy(() =>
 const Fallback = <PageLoader />;
 
 const CC_ROLES = [UserRole.FINANCE_ASSOCIATE, UserRole.FINANCE_MANAGER];
+const REPORT_ROLES = [UserRole.FINANCE_ASSOCIATE, UserRole.FINANCE_MANAGER];
 
 export const AppRoutes: React.FC = () => (
   <ErrorBoundary>
@@ -333,48 +329,24 @@ export const AppRoutes: React.FC = () => (
           <Route
             path="reports"
             element={
-              <ProtectedRoute allowedRoles={[UserRole.FINANCE_MANAGER]}>
+              <ProtectedRoute allowedRoles={REPORT_ROLES}>
                 <ReportsPage />
               </ProtectedRoute>
             }
           />
           <Route
-            path="reports/summary"
+            path="reports/invoices"
             element={
-              <ProtectedRoute allowedRoles={[UserRole.FINANCE_MANAGER]}>
-                <InvoiceSummaryReport />
+              <ProtectedRoute allowedRoles={REPORT_ROLES}>
+                <InvoiceProcessingReportPage />
               </ProtectedRoute>
             }
           />
           <Route
-            path="reports/vendor"
+            path="reports/finance-associates"
             element={
-              <ProtectedRoute allowedRoles={[UserRole.FINANCE_MANAGER]}>
-                <VendorPerformanceReport />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="reports/associate"
-            element={
-              <ProtectedRoute allowedRoles={[UserRole.FINANCE_MANAGER]}>
-                <AssociatePerformanceReport />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="reports/manager"
-            element={
-              <ProtectedRoute allowedRoles={[UserRole.FINANCE_MANAGER]}>
-                <ManagerPerformanceReport />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="reports/processing"
-            element={
-              <ProtectedRoute allowedRoles={[UserRole.FINANCE_MANAGER]}>
-                <ProcessingStatisticsReport />
+              <ProtectedRoute allowedRoles={REPORT_ROLES}>
+                <FinanceAssociatePerformanceReportPage />
               </ProtectedRoute>
             }
           />

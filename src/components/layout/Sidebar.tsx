@@ -183,7 +183,7 @@ const navGroups: NavGroup[] = [
         label: 'Reports',
         icon: <BarChart3 className="h-4 w-4" />,
         href: '/reports',
-        roles: [UserRole.FINANCE_MANAGER],
+        roles: [UserRole.FINANCE_ASSOCIATE, UserRole.FINANCE_MANAGER],
       },
       {
         label: 'User Management',
