@@ -33,7 +33,9 @@ export const useMailMonitoring = (emailAddress = DEFAULT_MONITORING_EMAIL) => {
     setIsToggling(true);
     try {
       await mailMonitoringService.startMonitoring(emailAddress);
-      toast.success('Mail monitoring started');
+      toast.success(
+        'Mail monitoring started. Catching up on emails received while stopped.',
+      );
       await fetchStatus();
     } catch {
       toast.error('Failed to start mail monitoring');
@@ -46,7 +48,7 @@ export const useMailMonitoring = (emailAddress = DEFAULT_MONITORING_EMAIL) => {
     setIsToggling(true);
     try {
       await mailMonitoringService.stopMonitoring(emailAddress);
-      toast.success('Mail monitoring stopped');
+      toast.success('Mail monitoring stopped. New emails will not be processed.');
       await fetchStatus();
     } catch {
       toast.error('Failed to stop mail monitoring');

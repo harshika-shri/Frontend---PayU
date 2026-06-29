@@ -31,7 +31,8 @@ export const MonitoringControlPanel: React.FC<MonitoringControlPanelProps> = ({
             <h3 className="text-sm font-semibold text-slate-900">Gmail Invoice Monitoring</h3>
             <p className="mt-1 text-sm text-slate-500">
               Monitor incoming invoices at{' '}
-              <span className="font-medium text-slate-700">{DEFAULT_MONITORING_EMAIL}</span>
+              <span className="font-medium text-slate-700">{DEFAULT_MONITORING_EMAIL}</span>.
+              While stopped, new emails are held; starting again processes them in arrival order.
             </p>
             {isLoading ? (
               <p className="mt-2 text-xs text-slate-400">Checking status...</p>
