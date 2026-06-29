@@ -5,72 +5,104 @@ import { Button } from '../../../components/ui/Button';
 import { ConfirmDialog } from '../../../components/ui/ConfirmDialog';
 import { ApproveDialog } from './ApproveDialog';
 import { EscalateDialog } from './EscalateDialog';
+import { RejectDialog } from './RejectDialog';
 import { useTakeOwnership } from '../hooks/useWorkflowActions';
 import { useAuth } from '../../auth/hooks/useAuth';
 import { UserRole } from '../../auth/constants/userRole';
 import type { InvoiceHeaderResponse } from '../types/invoiceReview.types';
 
-// Statuses where each action is available
-const APPROVE_STATUSES = new Set([
+const norm = (s: string | null | undefined) =>
+  (s ?? '').toLowerCase().replace(/[\s-]+/g, '_');
+
+// Statuses where Approve is valid
+const CAN_APPROVE = new Set([
   'ready_for_approval',
   'match_approved',
   'approved_ready_to_pay',
 ]);
-const CLARIFICATION_STATUSES = new Set([
-  'ready_for_approval',
+
+// Statuses where Clarification is valid — never shown when approve is available
+const CAN_CLARIFY = new Set([
   'needs_review',
-  'match_issues',
   'under_review',
+  'match_issues',
   'pending_action',
   'needs_clarification',
+  'validation_issues',
+  'extraction_completed',
 ]);
-const REJECT_STATUSES = new Set([
+
+const CAN_REJECT = new Set([
   'ready_for_approval',
   'needs_review',
-  'match_issues',
   'under_review',
+  'match_issues',
   'pending_action',
+  'validation_issues',
+  'extraction_completed',
 ]);
-const ESCALATE_STATUSES = new Set([
+
+const CAN_ESCALATE = new Set([
   'ready_for_approval',
   'needs_review',
-  'match_issues',
   'under_review',
+  'match_issues',
+  'pending_action',
+  'validation_issues',
+  'extraction_completed',
+]);
+
+const CAN_CLAIM = new Set([
+  'escalated',
+  'under_review',
+  'needs_review',
   'pending_action',
 ]);
-const OWNERSHIP_STATUSES = new Set(['escalated', 'under_review', 'needs_review']);
 
 interface InvoiceActionsPanelProps {
   invoiceId: string;
   header: InvoiceHeaderResponse;
   bucket?: string;
+  /** compact = inline horizontal buttons for the top bar */
+  compact?: boolean;
 }
 
 export const InvoiceActionsPanel: React.FC<InvoiceActionsPanelProps> = ({
   invoiceId,
   header,
   bucket,
+  compact = false,
 }) => {
   const navigate = useNavigate();
   const { role, userId } = useAuth();
   const isManager = role === UserRole.FINANCE_MANAGER;
 
   const [approveOpen, setApproveOpen] = useState(false);
+  const [rejectOpen, setRejectOpen] = useState(false);
   const [escalateOpen, setEscalateOpen] = useState(false);
   const [ownershipConfirmOpen, setOwnershipConfirmOpen] = useState(false);
 
   const ownershipMutation = useTakeOwnership(invoiceId);
 
-  const status = header.invoice_status?.toLowerCase() ?? '';
+  const status = norm(header.invoice_status);
+  const outcome = norm(header.validation_outcome);
   const backHref = bucket ? `/command-center/${bucket}` : '/command-center';
 
-  const showApprove = APPROVE_STATUSES.has(status);
-  const showClarification = CLARIFICATION_STATUSES.has(status);
-  const showReject = REJECT_STATUSES.has(status);
-  const showEscalate = ESCALATE_STATUSES.has(status) && !isManager;
-  const showOwnership = OWNERSHIP_STATUSES.has(status) && isManager;
+  // Mirror the backend `is_ready_for_approval()`:
+  //   invoice_status == UNDER_REVIEW  AND  validation_outcome == APPROVED
+  // Also allow ESCALATED + APPROVED (escalated invoices that passed validation).
+  const showApprove =
+    CAN_APPROVE.has(status) ||
+    ((status === 'under_review' || status === 'escalated') && outcome === 'approved');
 
-  const hasAnyAction = showApprove || showClarification || showReject || showEscalate || showOwnership;
+  // Clarify is mutually exclusive with Approve — never show both at once
+  const showClarification = CAN_CLARIFY.has(status) && !showApprove;
+  const showReject = CAN_REJECT.has(status) || showApprove; // reject always available when approvable
+  const showEscalate = CAN_ESCALATE.has(status) && !isManager && !showApprove;
+  const showOwnership = CAN_CLAIM.has(status) && isManager;
+
+  const hasAnyAction =
+    showApprove || showClarification || showReject || showEscalate || showOwnership;
 
   if (!hasAnyAction) return null;
 
@@ -80,85 +112,8 @@ export const InvoiceActionsPanel: React.FC<InvoiceActionsPanelProps> = ({
     await ownershipMutation.mutateAsync({ manager_id: userId });
   };
 
-  return (
-    <div className="space-y-3">
-      <div className="border-t border-[var(--color-border)] pt-4">
-        <h3 className="text-xs font-semibold uppercase tracking-widest text-[var(--color-muted-foreground)] mb-3">
-          Invoice Actions
-        </h3>
-
-        <div className="flex flex-col gap-2">
-          {showApprove && (
-            <Button
-              variant="success"
-              size="sm"
-              className="w-full justify-start"
-              leftIcon={<CheckCircle2 className="h-4 w-4" />}
-              onClick={() => setApproveOpen(true)}
-            >
-              Approve Invoice
-            </Button>
-          )}
-
-          {showEscalate && (
-            <Button
-              variant="outline"
-              size="sm"
-              className="w-full justify-start"
-              leftIcon={<TrendingUp className="h-4 w-4" />}
-              onClick={() => setEscalateOpen(true)}
-            >
-              Escalate to Manager
-            </Button>
-          )}
-
-          {showClarification && (
-            <Button
-              variant="outline"
-              size="sm"
-              className="w-full justify-start"
-              leftIcon={<MessageSquare className="h-4 w-4" />}
-              onClick={() =>
-                navigate(`/command-center/invoice/${invoiceId}/clarification`, {
-                  state: { bucket },
-                })
-              }
-            >
-              Request Clarification
-            </Button>
-          )}
-
-          {showReject && (
-            <Button
-              variant="outline"
-              size="sm"
-              className="w-full justify-start text-[var(--color-destructive)] hover:bg-[var(--color-destructive-muted)] hover:border-red-200"
-              leftIcon={<XCircle className="h-4 w-4" />}
-              onClick={() =>
-                navigate(`/command-center/invoice/${invoiceId}/rejection`, {
-                  state: { bucket },
-                })
-              }
-            >
-              Reject Invoice
-            </Button>
-          )}
-
-          {showOwnership && (
-            <Button
-              variant="outline"
-              size="sm"
-              className="w-full justify-start"
-              leftIcon={<UserCheck className="h-4 w-4" />}
-              loading={ownershipMutation.isPending}
-              onClick={() => setOwnershipConfirmOpen(true)}
-            >
-              Take Ownership
-            </Button>
-          )}
-        </div>
-      </div>
-
+  const dialogs = (
+    <>
       <ApproveDialog
         open={approveOpen}
         onClose={() => setApproveOpen(false)}
@@ -166,7 +121,6 @@ export const InvoiceActionsPanel: React.FC<InvoiceActionsPanelProps> = ({
         invoiceId={invoiceId}
         header={header}
       />
-
       <EscalateDialog
         open={escalateOpen}
         onClose={() => setEscalateOpen(false)}
@@ -174,7 +128,13 @@ export const InvoiceActionsPanel: React.FC<InvoiceActionsPanelProps> = ({
         invoiceId={invoiceId}
         invoiceNumber={header.invoice_number}
       />
-
+      <RejectDialog
+        open={rejectOpen}
+        onClose={() => setRejectOpen(false)}
+        onSuccess={() => navigate(backHref)}
+        invoiceId={invoiceId}
+        header={header}
+      />
       <ConfirmDialog
         open={ownershipConfirmOpen}
         onClose={() => setOwnershipConfirmOpen(false)}
@@ -184,6 +144,155 @@ export const InvoiceActionsPanel: React.FC<InvoiceActionsPanelProps> = ({
         description="This invoice will be assigned to you and will appear in your Claimed queue."
         confirmLabel="Take Ownership"
       />
+    </>
+  );
+
+  // ── Compact mode: horizontal buttons for the top bar ──────────────────────
+  if (compact) {
+    return (
+      <>
+        <div className="flex items-center gap-2">
+          {showEscalate && (
+            <Button
+              variant="outline"
+              size="sm"
+              leftIcon={<TrendingUp className="h-3.5 w-3.5" />}
+              onClick={() => setEscalateOpen(true)}
+            >
+              Escalate
+            </Button>
+          )}
+
+          {showClarification && (
+            <Button
+              variant="outline"
+              size="sm"
+              leftIcon={<MessageSquare className="h-3.5 w-3.5" />}
+              onClick={() =>
+                navigate(`/command-center/invoice/${invoiceId}/clarification`, {
+                  state: { bucket },
+                })
+              }
+            >
+              Clarify
+            </Button>
+          )}
+
+          {showReject && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-[var(--color-destructive)] hover:bg-red-50 hover:border-red-200"
+              leftIcon={<XCircle className="h-3.5 w-3.5" />}
+              onClick={() => setRejectOpen(true)}
+            >
+              Reject
+            </Button>
+          )}
+
+          {showApprove && (
+            <Button
+              variant="success"
+              size="sm"
+              leftIcon={<CheckCircle2 className="h-3.5 w-3.5" />}
+              onClick={() => setApproveOpen(true)}
+            >
+              Approve
+            </Button>
+          )}
+
+          {showOwnership && (
+            <Button
+              variant="outline"
+              size="sm"
+              leftIcon={<UserCheck className="h-3.5 w-3.5" />}
+              loading={ownershipMutation.isPending}
+              onClick={() => setOwnershipConfirmOpen(true)}
+            >
+              Take Ownership
+            </Button>
+          )}
+        </div>
+        {dialogs}
+      </>
+    );
+  }
+
+  // ── Full mode: vertical list in sidebar/tab ───────────────────────────────
+  return (
+    <div className="space-y-3">
+      <h3 className="text-xs font-semibold uppercase tracking-widest text-[var(--color-muted-foreground)] mb-3">
+        Invoice Actions
+      </h3>
+
+      <div className="flex flex-col gap-2">
+        {showApprove && (
+          <Button
+            variant="success"
+            size="sm"
+            className="w-full justify-start"
+            leftIcon={<CheckCircle2 className="h-4 w-4" />}
+            onClick={() => setApproveOpen(true)}
+          >
+            Approve Invoice
+          </Button>
+        )}
+
+        {showEscalate && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full justify-start"
+            leftIcon={<TrendingUp className="h-4 w-4" />}
+            onClick={() => setEscalateOpen(true)}
+          >
+            Escalate to Manager
+          </Button>
+        )}
+
+        {showClarification && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full justify-start"
+            leftIcon={<MessageSquare className="h-4 w-4" />}
+            onClick={() =>
+              navigate(`/command-center/invoice/${invoiceId}/clarification`, {
+                state: { bucket },
+              })
+            }
+          >
+            Clarify with Vendor
+          </Button>
+        )}
+
+        {showReject && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full justify-start text-[var(--color-destructive)] hover:bg-red-50 hover:border-red-200"
+            leftIcon={<XCircle className="h-4 w-4" />}
+            onClick={() => setRejectOpen(true)}
+          >
+            Reject Invoice
+          </Button>
+        )}
+
+        {showOwnership && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full justify-start"
+            leftIcon={<UserCheck className="h-4 w-4" />}
+            loading={ownershipMutation.isPending}
+            onClick={() => setOwnershipConfirmOpen(true)}
+          >
+            Take Ownership
+          </Button>
+        )}
+      </div>
+
+      {dialogs}
     </div>
   );
 };

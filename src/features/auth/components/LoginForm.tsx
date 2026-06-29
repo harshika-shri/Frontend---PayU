@@ -3,7 +3,7 @@ import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Eye, EyeOff, LogIn } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { useAuth } from '../hooks/useAuth';
 import { Button } from '../../../components/ui/Button';
@@ -93,8 +93,14 @@ export const LoginForm: React.FC = () => {
         </Button>
       </form>
 
-      <p className="mt-8 text-center text-xs text-[var(--color-muted-foreground)]">
-        Contact your administrator to reset your password or create an account.
+      <p className="mt-6 text-center text-sm text-[var(--color-muted-foreground)]">
+        <Link to="/forgot-password" className="text-[var(--color-primary)] hover:underline">
+          Forgot password?
+        </Link>
+      </p>
+
+      <p className="mt-4 text-center text-xs text-[var(--color-muted-foreground)]">
+        Contact your administrator to create an account.
       </p>
     </div>
   );

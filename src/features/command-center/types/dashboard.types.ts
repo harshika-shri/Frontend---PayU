@@ -4,6 +4,7 @@ export interface DashboardSummary {
   escalated: number;
   ready_to_pay: number;
   rejected: number;
+  overdue: number;
   total: number;
 }
 
@@ -11,6 +12,7 @@ export interface DashboardInvoiceListItem {
   invoice_id: string;
   invoice_number: string | null;
   invoice_date: string | null;
+  due_date?: string | null;
   vendor_name: string | null;
   total_amount: number | null;
   validation_outcome: string | null;
@@ -47,4 +49,5 @@ export type DashboardBucket =
   | 'needs-review'
   | 'escalated'
   | 'ready-to-pay'
-  | 'rejected';
+  | 'rejected'
+  | 'overdue';

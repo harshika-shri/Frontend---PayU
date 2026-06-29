@@ -1,6 +1,7 @@
 import React from 'react';
 import { CheckCircle2, XCircle, AlertTriangle, MinusCircle } from 'lucide-react';
 import { cn } from '../../../../utils/cn';
+import { ValidationIssuesPanel } from './ValidationIssuesPanel';
 import type { InvoiceValidationResponse, ValidationIssueDetails } from '../../types/invoiceReview.types';
 
 interface ValidationTabProps {
@@ -139,47 +140,26 @@ export const ValidationTab: React.FC<ValidationTabProps> = ({ validation }) => {
         )}
       </div>
 
-      {/* AI review summary */}
-      {validation.review_summary && (
-        <div className="rounded-lg border border-[var(--color-border)] overflow-hidden">
-          <div className="px-4 py-2.5 bg-[var(--color-muted)] border-b border-[var(--color-border)]">
-            <h3 className="text-xs font-semibold uppercase tracking-widest text-[var(--color-muted-foreground)]">
-              AI Review Summary
-            </h3>
+      <ValidationIssuesPanel validation={validation} />
+
+      {validation.review_summary &&
+        (validation.review_summary.system_recoveries_json as string[]).length > 0 && (
+          <div className="rounded-lg border border-[var(--color-border)] overflow-hidden">
+            <div className="px-4 py-2.5 bg-[var(--color-muted)] border-b border-[var(--color-border)]">
+              <h3 className="text-xs font-semibold uppercase tracking-widest text-[var(--color-muted-foreground)]">
+                System Recoveries
+              </h3>
+            </div>
+            <ul className="px-4 py-4 bg-white space-y-2">
+              {(validation.review_summary.system_recoveries_json as string[]).map((r, i) => (
+                <li key={i} className="flex items-start gap-2 text-sm text-[var(--color-foreground)]">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-[var(--color-success)] flex-shrink-0 mt-0.5" />
+                  {r}
+                </li>
+              ))}
+            </ul>
           </div>
-          <div className="px-4 py-4 bg-white space-y-3">
-            <p className="text-sm text-[var(--color-foreground)] leading-relaxed">
-              {validation.review_summary.executive_summary}
-            </p>
-            {(validation.review_summary.open_issues_json as string[]).length > 0 && (
-              <div>
-                <p className="text-xs font-medium text-[var(--color-muted-foreground)] mb-1.5">Open Issues</p>
-                <ul className="space-y-1">
-                  {(validation.review_summary.open_issues_json as string[]).map((issue, i) => (
-                    <li key={i} className="flex items-start gap-2 text-sm text-[var(--color-foreground)]">
-                      <XCircle className="h-3.5 w-3.5 text-[var(--color-destructive)] flex-shrink-0 mt-0.5" />
-                      {issue}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-            {(validation.review_summary.system_recoveries_json as string[]).length > 0 && (
-              <div>
-                <p className="text-xs font-medium text-[var(--color-muted-foreground)] mb-1.5">System Recoveries</p>
-                <ul className="space-y-1">
-                  {(validation.review_summary.system_recoveries_json as string[]).map((r, i) => (
-                    <li key={i} className="flex items-start gap-2 text-sm text-[var(--color-foreground)]">
-                      <CheckCircle2 className="h-3.5 w-3.5 text-[var(--color-success)] flex-shrink-0 mt-0.5" />
-                      {r}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+        )}
 
       {/* Issues by stage */}
       {Object.keys(grouped).length === 0 ? (

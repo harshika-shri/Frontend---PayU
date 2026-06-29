@@ -1,4 +1,5 @@
 import { commandCenterClient } from '../../../lib/commandCenterClient';
+import type { ManagerSummary } from '../types/workflow.types';
 import type {
   ApproveInvoiceRequest,
   ApproveInvoiceResponse,
@@ -98,6 +99,11 @@ export const workflowService = {
       `/invoices/${invoiceId}/take-ownership`,
       payload,
     );
+    return r.data;
+  },
+
+  listManagers: async (): Promise<ManagerSummary[]> => {
+    const r = await commandCenterClient.get<ManagerSummary[]>('/users/managers');
     return r.data;
   },
 };

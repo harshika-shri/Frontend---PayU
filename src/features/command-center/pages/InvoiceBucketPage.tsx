@@ -21,12 +21,16 @@ const BUCKET_META: Record<DashboardBucket, { title: string; description: string 
     description: 'Invoices escalated to a manager for further decision.',
   },
   'ready-to-pay': {
-    title: 'Ready to Pay',
-    description: 'Fully approved invoices ready to be processed for payment.',
+    title: 'Approved',
+    description: 'Invoices approved and ready for payment processing.',
   },
   'rejected': {
     title: 'Rejected',
     description: 'Invoices rejected due to unresolvable validation issues.',
+  },
+  'overdue': {
+    title: 'Overdue',
+    description: 'Invoices past their due date that have been marked overdue.',
   },
 };
 

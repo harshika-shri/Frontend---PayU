@@ -1,5 +1,8 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Eye } from 'lucide-react';
 import { Badge } from '../../../../components/ui/Badge';
+import { Button } from '../../../../components/ui/Button';
 import { StatusBadge } from '../../../../components/ui/StatusBadge';
 import { formatDate, formatCurrency } from '../../../../utils/formatters';
 import { cn } from '../../../../utils/cn';
@@ -7,9 +10,16 @@ import type { POCandidateResponse } from '../../types/invoiceReview.types';
 
 interface POCandidatesTabProps {
   poCandidates: POCandidateResponse;
+  invoiceId?: string;
 }
 
-export const POCandidatesTab: React.FC<POCandidatesTabProps> = ({ poCandidates }) => {
+export const POCandidatesTab: React.FC<POCandidatesTabProps> = ({ poCandidates, invoiceId }) => {
+  const navigate = useNavigate();
+
+  const handleViewPo = (poId: string) => {
+    const returnTo = invoiceId ? `/command-center/invoice/${invoiceId}` : undefined;
+    navigate(`/purchase-orders/${poId}`, returnTo ? { state: { returnTo } } : undefined);
+  };
   if (!poCandidates.candidate_groups.length) {
     return (
       <div className="flex flex-col items-center justify-center gap-2 py-12 text-center">
@@ -79,7 +89,17 @@ export const POCandidatesTab: React.FC<POCandidatesTabProps> = ({ poCandidates }
                       {po.vendor_name ?? 'Unknown vendor'} · {formatDate(po.po_date)}
                     </p>
                   </div>
-                  <StatusBadge status={po.status} type="po" />
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleViewPo(po.po_id)}
+                      leftIcon={<Eye className="h-3.5 w-3.5" />}
+                    >
+                      View
+                    </Button>
+                    <StatusBadge status={po.status} type="po" />
+                  </div>
                 </div>
                 <div className="mt-2 flex flex-wrap gap-4 text-xs text-[var(--color-muted-foreground)]">
                   <span>

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Modal, ModalFooter } from '../../../components/ui/Modal';
 import { Button } from '../../../components/ui/Button';
 import { FileDropzone } from '../../../components/ui/FileDropzone';
+import { Spinner } from '../../../components/ui/Spinner';
 import { useUploadPurchaseOrder } from '../hooks/usePurchaseOrders';
 
 interface POUploadModalProps {
@@ -11,12 +12,20 @@ interface POUploadModalProps {
 
 export const POUploadModal: React.FC<POUploadModalProps> = ({ open, onClose }) => {
   const [file, setFile] = useState<File | null>(null);
-  const { upload, isPending, uploadProgress } = useUploadPurchaseOrder();
+  const { upload, cancel, isPending } = useUploadPurchaseOrder();
 
   const handleClose = () => {
     if (isPending) return;
     setFile(null);
     onClose();
+  };
+
+  const handleCancel = () => {
+    if (isPending) {
+      cancel();
+      return;
+    }
+    handleClose();
   };
 
   const handleSubmit = async () => {
@@ -44,31 +53,19 @@ export const POUploadModal: React.FC<POUploadModalProps> = ({ open, onClose }) =
           accept={['.pdf', '.png', '.jpg', '.jpeg', '.tiff']}
         />
 
-        {isPending && uploadProgress > 0 && (
-          <div className="space-y-1.5">
-            <div className="flex justify-between text-xs text-[var(--color-muted-foreground)]">
-              <span>Uploading & extracting…</span>
-              <span>{uploadProgress}%</span>
-            </div>
-            <div className="h-1.5 w-full rounded-full bg-[var(--color-muted)] overflow-hidden">
-              <div
-                className="h-full bg-[var(--color-primary)] rounded-full transition-all duration-200"
-                style={{ width: `${uploadProgress}%` }}
-              />
-            </div>
+        {isPending && (
+          <div className="flex flex-col items-center gap-3 py-4">
+            <Spinner size="md" />
+            <p className="text-sm text-[var(--color-muted-foreground)] text-center">
+              Classifying document and extracting purchase order data…
+            </p>
           </div>
-        )}
-
-        {isPending && uploadProgress === 0 && (
-          <p className="text-xs text-[var(--color-muted-foreground)] text-center">
-            Extracting data from document. This may take a few seconds…
-          </p>
         )}
       </div>
 
       <ModalFooter>
-        <Button variant="outline" size="sm" onClick={handleClose} disabled={isPending}>
-          Cancel
+        <Button variant="outline" size="sm" onClick={handleCancel}>
+          {isPending ? 'Cancel processing' : 'Cancel'}
         </Button>
         <Button
           size="sm"

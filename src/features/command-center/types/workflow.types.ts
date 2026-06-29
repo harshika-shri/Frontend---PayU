@@ -81,3 +81,10 @@ export interface TakeOwnershipResponse {
   assigned_manager_id: string;
   message: string;
 }
+
+// Users
+export interface ManagerSummary {
+  id: string;
+  name: string;
+  email: string;
+}

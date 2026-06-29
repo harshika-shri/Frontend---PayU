@@ -1,4 +1,4 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { workflowService } from '../services/workflowService';
 import { invoiceReviewKey } from './useInvoiceReview';
@@ -43,11 +43,16 @@ export const useEscalateInvoice = (invoiceId: string) => {
   });
 };
 
-export const useGenerateClarificationDraft = (invoiceId: string) =>
+export const useGenerateClarificationDraft = (
+  invoiceId: string,
+  options?: { silent?: boolean },
+) =>
   useMutation({
     mutationFn: () => workflowService.generateClarificationDraft(invoiceId),
-    onError: (err) =>
-      toast.error(errMsg(err, 'Unable to generate clarification draft.')),
+    onError: (err) => {
+      if (options?.silent) return;
+      toast.error(errMsg(err, 'Unable to generate clarification draft.'));
+    },
   });
 
 export const useSendClarification = (invoiceId: string) => {
@@ -72,6 +77,7 @@ export const useRejectInvoice = (invoiceId: string) => {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: invoiceReviewKey(invoiceId) });
       qc.invalidateQueries({ queryKey: DASHBOARD_SUMMARY_KEY });
+      qc.invalidateQueries({ queryKey: ['dashboard', 'invoices'] });
       toast.success('Invoice rejected.');
     },
     onError: (err) => toast.error(errMsg(err, 'Unable to reject invoice. Please try again.')),
@@ -108,7 +114,14 @@ export const useTakeOwnership = (invoiceId: string) => {
       qc.invalidateQueries({ queryKey: invoiceReviewKey(invoiceId) });
       toast.success('Invoice claimed. It is now in your queue.');
     },
-    onError: (err) =>
-      toast.error(errMsg(err, 'Unable to claim invoice. Please try again.')),
+  onError: (err) =>
+    toast.error(errMsg(err, 'Unable to claim invoice. Please try again.')),
   });
 };
+
+export const useListManagers = () =>
+  useQuery({
+    queryKey: ['managers'],
+    queryFn: () => workflowService.listManagers(),
+    staleTime: 5 * 60 * 1000,
+  });

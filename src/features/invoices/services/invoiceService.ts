@@ -8,6 +8,7 @@ export const invoiceService = {
   uploadInvoice: async (
     file: File,
     onProgress?: (pct: number) => void,
+    signal?: AbortSignal,
   ): Promise<InvoiceUploadResponse> => {
     const formData = new FormData();
     formData.append('file', file);
@@ -16,6 +17,7 @@ export const invoiceService = {
       formData,
       {
         headers: { 'Content-Type': 'multipart/form-data' },
+        signal,
         onUploadProgress: (e) => {
           if (e.total) onProgress?.(Math.round((e.loaded / e.total) * 100));
         },

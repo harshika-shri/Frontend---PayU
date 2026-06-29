@@ -5,13 +5,14 @@ import { PageHeader } from '../../../components/ui/PageHeader';
 import { Button } from '../../../components/ui/Button';
 import { Card } from '../../../components/ui/Card';
 import { FileDropzone } from '../../../components/ui/FileDropzone';
+import { Spinner } from '../../../components/ui/Spinner';
 import { useInvoiceUpload } from '../hooks/useInvoiceUpload';
 import toast from 'react-hot-toast';
 
 export const InvoiceUploadPage: React.FC = () => {
   const navigate = useNavigate();
   const [file, setFile] = useState<File | null>(null);
-  const { upload, isPending, uploadProgress, data, reset } = useInvoiceUpload();
+  const { upload, cancel, isPending, data, reset } = useInvoiceUpload();
 
   const handleUpload = async () => {
     if (!file) return;
@@ -107,36 +108,33 @@ export const InvoiceUploadPage: React.FC = () => {
             />
 
             {isPending && (
-              <div className="space-y-2">
-                <div className="flex justify-between text-xs text-[var(--color-muted-foreground)]">
-                  <span>
-                    {uploadProgress < 100 ? 'Uploading document…' : 'Extracting data with AI…'}
-                  </span>
-                  {uploadProgress > 0 && uploadProgress < 100 && (
-                    <span>{uploadProgress}%</span>
-                  )}
-                </div>
-                <div className="h-1.5 w-full rounded-full bg-[var(--color-muted)] overflow-hidden">
-                  <div
-                    className={`h-full rounded-full transition-all duration-300 ${
-                      uploadProgress < 100
-                        ? 'bg-[var(--color-primary)]'
-                        : 'bg-[var(--color-success)] animate-pulse'
-                    }`}
-                    style={{ width: uploadProgress < 100 ? `${uploadProgress}%` : '100%' }}
-                  />
-                </div>
+              <div className="flex flex-col items-center gap-3 py-4">
+                <Spinner size="md" />
+                <p className="text-sm text-[var(--color-muted-foreground)] text-center">
+                  Uploading, classifying, and extracting invoice data…
+                </p>
               </div>
             )}
 
-            <Button
-              className="w-full"
-              onClick={handleUpload}
-              disabled={!file}
-              loading={isPending}
-            >
-              Extract Invoice
-            </Button>
+            <div className="flex gap-3">
+              {isPending && (
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={cancel}
+                >
+                  Cancel
+                </Button>
+              )}
+              <Button
+                className={isPending ? 'flex-1' : 'w-full'}
+                onClick={handleUpload}
+                disabled={!file}
+                loading={isPending}
+              >
+                Extract Invoice
+              </Button>
+            </div>
           </div>
         </Card>
 

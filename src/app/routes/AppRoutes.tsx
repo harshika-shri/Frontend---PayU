@@ -3,6 +3,8 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { AuthLayout } from '../../components/layout/AuthLayout';
 import { MainLayout } from '../../components/layout/MainLayout';
 import { LoginForm } from '../../features/auth/components/LoginForm';
+import { ForgotPasswordForm } from '../../features/auth/components/ForgotPasswordForm';
+import { ResetPasswordForm } from '../../features/auth/components/ResetPasswordForm';
 import { ProtectedRoute } from './ProtectedRoute';
 import { UserRole } from '../../features/auth/constants/userRole';
 import { PageLoader } from '../../components/ui/PageLoader';
@@ -22,6 +24,11 @@ const CommandCenterDashboard = lazy(() =>
 const InvoiceBucketPage = lazy(() =>
   import('../../features/command-center/pages/InvoiceBucketPage').then((m) => ({ default: m.InvoiceBucketPage })),
 );
+const InvoicePOComparePage = lazy(() =>
+  import('../../features/command-center/pages/InvoicePOComparePage').then((m) => ({
+    default: m.InvoicePOComparePage,
+  })),
+);
 const InvoiceReviewPage = lazy(() =>
   import('../../features/command-center/pages/InvoiceReviewPage').then((m) => ({ default: m.InvoiceReviewPage })),
 );
@@ -35,6 +42,9 @@ const RejectionWorkflowPage = lazy(() =>
 // Document Intake
 const PurchaseOrdersPage = lazy(() =>
   import('../../features/purchase-orders/components/PurchaseOrdersPage').then((m) => ({ default: m.PurchaseOrdersPage })),
+);
+const PurchaseOrderDetailPage = lazy(() =>
+  import('../../features/purchase-orders/pages/PurchaseOrderDetailPage').then((m) => ({ default: m.PurchaseOrderDetailPage })),
 );
 const InvoiceUploadPage = lazy(() =>
   import('../../features/invoices/pages/InvoiceUploadPage').then((m) => ({ default: m.InvoiceUploadPage })),
@@ -109,6 +119,8 @@ export const AppRoutes: React.FC = () => (
         {/* Public */}
         <Route element={<AuthLayout />}>
           <Route path="/login" element={<LoginForm />} />
+          <Route path="/forgot-password" element={<ForgotPasswordForm />} />
+          <Route path="/reset-password" element={<ResetPasswordForm />} />
         </Route>
 
         {/* Protected */}
@@ -175,10 +187,26 @@ export const AppRoutes: React.FC = () => (
             }
           />
           <Route
+            path="command-center/overdue"
+            element={
+              <ProtectedRoute allowedRoles={CC_ROLES}>
+                <InvoiceBucketPage bucket="overdue" />
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="command-center/invoice/:invoiceId"
             element={
               <ProtectedRoute allowedRoles={CC_ROLES}>
                 <InvoiceReviewPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="command-center/invoice/:invoiceId/compare/:poId"
+            element={
+              <ProtectedRoute allowedRoles={CC_ROLES}>
+                <InvoicePOComparePage />
               </ProtectedRoute>
             }
           />
@@ -205,6 +233,14 @@ export const AppRoutes: React.FC = () => (
             element={
               <ProtectedRoute allowedRoles={CC_ROLES}>
                 <PurchaseOrdersPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="purchase-orders/:poId"
+            element={
+              <ProtectedRoute allowedRoles={CC_ROLES}>
+                <PurchaseOrderDetailPage />
               </ProtectedRoute>
             }
           />

@@ -14,12 +14,15 @@ import { cn } from '../../../utils/cn';
 interface DocumentViewerProps {
   fileUrl?: string;
   fileType?: 'pdf' | 'image' | null;
+  /** When true, document fills its container without an inner scroll area */
+  fitContainer?: boolean;
   className?: string;
 }
 
 export const DocumentViewer: React.FC<DocumentViewerProps> = ({
   fileUrl,
   fileType,
+  fitContainer = false,
   className,
 }) => {
   const [zoom, setZoom] = useState(100);
@@ -80,7 +83,12 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
       </div>
 
       {/* Viewer */}
-      <div className="flex-1 overflow-auto scrollbar-thin flex items-start justify-center p-3">
+      <div
+        className={cn(
+          'flex-1 flex items-center justify-center p-3 min-h-0',
+          fitContainer ? 'overflow-hidden' : 'overflow-auto scrollbar-thin items-start',
+        )}
+      >
         {!fileUrl ? (
           <div className="flex flex-col items-center justify-center gap-3 h-full min-h-[400px] text-center px-6">
             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white border border-[var(--color-border)]">
@@ -99,15 +107,29 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
           <img
             src={fileUrl}
             alt="Invoice document"
-            style={{ width: `${zoom}%`, maxWidth: 'none' }}
-            className="rounded shadow-sm border border-[var(--color-border)]"
+            style={
+              fitContainer
+                ? undefined
+                : { width: `${zoom}%`, maxWidth: 'none' }
+            }
+            className={cn(
+              'rounded shadow-sm border border-[var(--color-border)]',
+              fitContainer && 'h-full w-full object-contain',
+            )}
           />
         ) : isPdf ? (
           <iframe
             src={fileUrl}
             title="Invoice PDF"
-            style={{ width: `${zoom}%`, minHeight: '600px', maxWidth: 'none' }}
-            className="rounded shadow-sm border border-[var(--color-border)] bg-white"
+            style={
+              fitContainer
+                ? { width: '100%', height: '100%' }
+                : { width: `${zoom}%`, minHeight: '600px', maxWidth: 'none' }
+            }
+            className={cn(
+              'rounded shadow-sm border border-[var(--color-border)] bg-white',
+              fitContainer && 'h-full min-h-0',
+            )}
           />
         ) : (
           <div className="flex flex-col items-center justify-center gap-3 h-full min-h-[400px]">

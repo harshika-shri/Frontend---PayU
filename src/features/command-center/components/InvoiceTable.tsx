@@ -24,7 +24,9 @@ interface InvoiceTableProps {
 
 const makeColumns = (
   onView: (id: string) => void,
-): Column<DashboardInvoiceListItem>[] => [
+  bucket: string,
+): Column<DashboardInvoiceListItem>[] => {
+  const columns: Column<DashboardInvoiceListItem>[] = [
   {
     key: 'invoice_number',
     header: 'Invoice #',
@@ -51,80 +53,98 @@ const makeColumns = (
       <span className="text-[var(--color-muted-foreground)]">{formatDate(row.invoice_date)}</span>
     ),
   },
-  {
-    key: 'total_amount',
-    header: 'Amount',
-    className: 'text-right',
-    headerClassName: 'text-right',
-    render: (row) => (
-      <span className="font-medium tabular-nums">
-        {row.total_amount != null ? formatCurrency(row.total_amount, 'INR') : '—'}
-      </span>
-    ),
-  },
-  {
-    key: 'invoice_status',
-    header: 'Status',
-    render: (row) =>
-      row.invoice_status ? (
-        <StatusBadge status={row.invoice_status} type="invoice" />
-      ) : (
-        <span className="text-[var(--color-muted-foreground)]">—</span>
+  ];
+
+  if (bucket === 'overdue') {
+    columns.splice(3, 0, {
+      key: 'due_date',
+      header: 'Due Date',
+      render: (row) => (
+        <span className="font-medium text-[var(--color-destructive)]">
+          {formatDate(row.due_date ?? null)}
+        </span>
       ),
-  },
-  {
-    key: 'validation_outcome',
-    header: 'Validation',
-    render: (row) =>
-      row.validation_outcome ? (
-        <Badge
-          variant={
-            row.validation_outcome === 'resolved' || row.validation_outcome === 'approved'
-              ? 'success'
-              : row.validation_outcome === 'pending_review' ||
-                row.validation_outcome === 'ambiguous'
-              ? 'warning'
-              : row.validation_outcome === 'rejected' ||
-                row.validation_outcome === 'unresolved'
-              ? 'destructive'
-              : 'secondary'
-          }
-          dot
+    });
+  }
+
+  columns.push(
+    {
+      key: 'total_amount',
+      header: 'Amount',
+      className: 'text-right',
+      headerClassName: 'text-right',
+      render: (row) => (
+        <span className="font-medium tabular-nums">
+          {row.total_amount != null ? formatCurrency(row.total_amount, 'INR') : '—'}
+        </span>
+      ),
+    },
+    {
+      key: 'invoice_status',
+      header: 'Status',
+      render: (row) =>
+        row.invoice_status ? (
+          <StatusBadge status={row.invoice_status} type="invoice" />
+        ) : (
+          <span className="text-[var(--color-muted-foreground)]">—</span>
+        ),
+    },
+    {
+      key: 'validation_outcome',
+      header: 'Validation',
+      render: (row) =>
+        row.validation_outcome ? (
+          <Badge
+            variant={
+              row.validation_outcome === 'resolved' || row.validation_outcome === 'approved'
+                ? 'success'
+                : row.validation_outcome === 'pending_review' ||
+                    row.validation_outcome === 'ambiguous'
+                  ? 'warning'
+                  : row.validation_outcome === 'rejected' ||
+                      row.validation_outcome === 'unresolved'
+                    ? 'destructive'
+                    : 'secondary'
+            }
+            dot
+          >
+            {row.validation_outcome.replace(/_/g, ' ')}
+          </Badge>
+        ) : (
+          <span className="text-[var(--color-muted-foreground)]">—</span>
+        ),
+    },
+    {
+      key: 'created_at',
+      header: 'Received',
+      render: (row) => (
+        <span className="text-[var(--color-muted-foreground)]">
+          {formatDateTime(row.created_at)}
+        </span>
+      ),
+    },
+    {
+      key: 'actions',
+      header: '',
+      render: (row) => (
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={(e) => {
+            e.stopPropagation();
+            onView(row.invoice_id);
+          }}
+          leftIcon={<Eye className="h-3.5 w-3.5" />}
+          className="text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)]"
         >
-          {row.validation_outcome.replace(/_/g, ' ')}
-        </Badge>
-      ) : (
-        <span className="text-[var(--color-muted-foreground)]">—</span>
+          Review
+        </Button>
       ),
-  },
-  {
-    key: 'created_at',
-    header: 'Received',
-    render: (row) => (
-      <span className="text-[var(--color-muted-foreground)]">
-        {formatDateTime(row.created_at)}
-      </span>
-    ),
-  },
-  {
-    key: 'actions',
-    header: '',
-    render: (row) => (
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={(e) => {
-          e.stopPropagation();
-          onView(row.invoice_id);
-        }}
-        leftIcon={<Eye className="h-3.5 w-3.5" />}
-        className="text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)]"
-      >
-        Review
-      </Button>
-    ),
-  },
-];
+    },
+  );
+
+  return columns;
+};
 
 export const InvoiceTable: React.FC<InvoiceTableProps> = ({
   items,
@@ -144,7 +164,7 @@ export const InvoiceTable: React.FC<InvoiceTableProps> = ({
 
   return (
     <DataTable
-      columns={makeColumns(handleView)}
+      columns={makeColumns(handleView, bucket)}
       data={items}
       total={total}
       page={page}

@@ -1,24 +1,23 @@
-import React, { useState } from 'react';
-import { useLocation, Link } from 'react-router-dom';
-import { Bell, LogOut, Settings, KeyRound, Search, Wifi, WifiOff } from 'lucide-react';
+import React, { useRef, useState } from 'react';
+import { Link, NavLink, useLocation } from 'react-router-dom';
+import { BarChart3, Bell, ChevronDown, KeyRound, LogOut, Mail, Settings } from 'lucide-react';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { useAuth } from '../../features/auth/hooks/useAuth';
 import { formatRoleLabel } from '../../features/auth/utils/formatRoleLabel';
 import { Breadcrumb } from '../ui/Breadcrumb';
 import { NotificationDrawer } from '../../features/notifications/components/NotificationDrawer';
-import { useNotificationUnreadCount, useNotificationSSE, useRealtimeUpdates } from '../../features/notifications/hooks/useNotifications';
-import { useSSEConnection } from '../../hooks/useSSEConnection';
+import {
+  useNotificationUnreadCount,
+  useNotificationSSE,
+  useRealtimeUpdates,
+} from '../../features/notifications/hooks/useNotifications';
+import { UserRole } from '../../features/auth/constants/userRole';
 import { cn } from '../../utils/cn';
 
+// ─── Route meta (breadcrumbs / page titles) ──────────────────────────────────
 const routeMeta: Record<string, { title: string; breadcrumbs: { label: string; href?: string }[] }> = {
-  '/dashboard': {
-    title: 'Dashboard',
-    breadcrumbs: [{ label: 'Dashboard' }],
-  },
-  '/command-center': {
-    title: 'Command Center',
-    breadcrumbs: [{ label: 'Command Center' }],
-  },
+  '/dashboard': { title: 'Dashboard', breadcrumbs: [{ label: 'Dashboard' }] },
+  '/command-center': { title: 'Command Center', breadcrumbs: [{ label: 'Command Center' }] },
   '/command-center/ready-for-approval': {
     title: 'Ready for Approval',
     breadcrumbs: [{ label: 'Command Center', href: '/command-center' }, { label: 'Ready for Approval' }],
@@ -32,32 +31,32 @@ const routeMeta: Record<string, { title: string; breadcrumbs: { label: string; h
     breadcrumbs: [{ label: 'Command Center', href: '/command-center' }, { label: 'Escalated' }],
   },
   '/command-center/ready-to-pay': {
-    title: 'Ready to Pay',
-    breadcrumbs: [{ label: 'Command Center', href: '/command-center' }, { label: 'Ready to Pay' }],
+    title: 'Approved',
+    breadcrumbs: [{ label: 'Command Center', href: '/command-center' }, { label: 'Approved' }],
   },
   '/command-center/rejected': {
     title: 'Rejected',
     breadcrumbs: [{ label: 'Command Center', href: '/command-center' }, { label: 'Rejected' }],
   },
+  '/command-center/overdue': {
+    title: 'Overdue',
+    breadcrumbs: [{ label: 'Command Center', href: '/command-center' }, { label: 'Overdue' }],
+  },
   '/purchase-orders': {
     title: 'Purchase Orders',
-    breadcrumbs: [{ label: 'Document Intake' }, { label: 'Purchase Orders' }],
+    breadcrumbs: [{ label: 'Documents' }, { label: 'Purchase Orders' }],
   },
   '/invoices/upload': {
     title: 'Invoice Upload',
-    breadcrumbs: [{ label: 'Document Intake' }, { label: 'Invoice Upload' }],
+    breadcrumbs: [{ label: 'Documents' }, { label: 'Invoice Upload' }],
   },
   '/invoices/processing': {
     title: 'Invoice Processing',
-    breadcrumbs: [{ label: 'Document Intake' }, { label: 'Invoice Processing' }],
+    breadcrumbs: [{ label: 'Documents' }, { label: 'Invoice Processing' }],
   },
   '/extraction-review': {
     title: 'Extraction Review',
-    breadcrumbs: [{ label: 'Extraction' }, { label: 'Extraction Review' }],
-  },
-  '/finance/associate': {
-    title: 'Finance Associate',
-    breadcrumbs: [{ label: 'Workflow' }, { label: 'Finance Associate' }],
+    breadcrumbs: [{ label: 'Extraction Review' }],
   },
   '/finance-manager': {
     title: 'Finance Manager',
@@ -81,16 +80,13 @@ const routeMeta: Record<string, { title: string; breadcrumbs: { label: string; h
   },
   '/mail-monitoring': {
     title: 'Mail Monitoring',
-    breadcrumbs: [{ label: 'System' }, { label: 'Mail Monitoring' }],
+    breadcrumbs: [{ label: 'Mail Monitoring' }],
   },
   '/notifications': {
     title: 'Notifications',
-    breadcrumbs: [{ label: 'System' }, { label: 'Notifications' }],
+    breadcrumbs: [{ label: 'Notifications' }],
   },
-  '/reports': {
-    title: 'Reports',
-    breadcrumbs: [{ label: 'System' }, { label: 'Reports' }],
-  },
+  '/reports': { title: 'Reports', breadcrumbs: [{ label: 'Reports' }] },
   '/reports/summary': {
     title: 'Invoice Summary',
     breadcrumbs: [{ label: 'Reports', href: '/reports' }, { label: 'Invoice Summary' }],
@@ -115,12 +111,214 @@ const routeMeta: Record<string, { title: string; breadcrumbs: { label: string; h
     title: 'User Management',
     breadcrumbs: [{ label: 'Admin' }, { label: 'User Management' }],
   },
-  '/settings': {
-    title: 'Settings',
-    breadcrumbs: [{ label: 'Account' }, { label: 'Settings' }],
-  },
+  '/settings': { title: 'Settings', breadcrumbs: [{ label: 'Settings' }] },
 };
 
+// ─── Nav types ────────────────────────────────────────────────────────────────
+interface NavChild {
+  label: string;
+  href: string;
+}
+
+interface NavItemConfig {
+  id: string;
+  label: string;
+  href?: string;
+  end?: boolean;
+  children?: NavChild[];
+  roles?: string[];
+  icon?: React.ReactNode;
+}
+
+const CC_ROLES = [UserRole.FINANCE_ASSOCIATE, UserRole.FINANCE_MANAGER];
+
+const LEFT_NAV: NavItemConfig[] = [
+  {
+    id: 'dashboard',
+    label: 'Dashboard',
+    href: '/dashboard',
+    end: true,
+  },
+  {
+    id: 'command-center',
+    label: 'Command Center',
+    roles: CC_ROLES,
+    children: [
+      { label: 'Ready for Approval', href: '/command-center/ready-for-approval' },
+      { label: 'Needs Review', href: '/command-center/needs-review' },
+      { label: 'Escalated', href: '/command-center/escalated' },
+      { label: 'Approved', href: '/command-center/ready-to-pay' },
+      { label: 'Rejected', href: '/command-center/rejected' },
+      { label: 'Overdue', href: '/command-center/overdue' },
+    ],
+  },
+  {
+    id: 'documents',
+    label: 'Documents',
+    roles: CC_ROLES,
+    children: [
+      { label: 'Purchase Orders', href: '/purchase-orders' },
+      { label: 'Invoice Upload', href: '/invoices/upload' },
+      { label: 'Invoice Processing', href: '/invoices/processing' },
+    ],
+  },
+  {
+    id: 'extraction-review',
+    label: 'Extraction Review',
+    href: '/extraction-review',
+    end: true,
+    roles: CC_ROLES,
+  },
+  {
+    id: 'finance-manager',
+    label: 'Finance Manager',
+    href: '/finance-manager',
+    roles: [UserRole.FINANCE_MANAGER],
+    children: [
+      { label: 'Overview', href: '/finance-manager' },
+      { label: 'My Escalated', href: '/finance-manager/my-escalated' },
+      { label: 'Unassigned Queue', href: '/finance-manager/unassigned' },
+      { label: 'My Claimed', href: '/finance-manager/my-claimed' },
+    ],
+  },
+];
+
+const RIGHT_NAV: NavItemConfig[] = [
+  {
+    id: 'mail-monitoring',
+    label: 'Mail Monitoring',
+    href: '/mail-monitoring',
+    roles: [UserRole.FINANCE_MANAGER],
+    icon: <Mail className="h-3.5 w-3.5" />,
+  },
+  {
+    id: 'reports',
+    label: 'Reports',
+    roles: [UserRole.FINANCE_MANAGER],
+    icon: <BarChart3 className="h-3.5 w-3.5" />,
+    children: [
+      { label: 'Invoice Summary', href: '/reports/summary' },
+      { label: 'Vendor Performance', href: '/reports/vendor' },
+      { label: 'Associate Performance', href: '/reports/associate' },
+      { label: 'Manager Performance', href: '/reports/manager' },
+      { label: 'Processing Statistics', href: '/reports/processing' },
+    ],
+  },
+];
+
+// ─── HoverNavItem ─────────────────────────────────────────────────────────────
+interface HoverNavItemProps {
+  item: NavItemConfig;
+  dropdownAlign?: 'left' | 'right';
+}
+
+const HoverNavItem: React.FC<HoverNavItemProps> = ({ item, dropdownAlign = 'left' }) => {
+  const location = useLocation();
+  const [open, setOpen] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const openMenu = () => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+    setOpen(true);
+  };
+
+  const closeMenu = () => {
+    timerRef.current = setTimeout(() => setOpen(false), 130);
+  };
+
+  const hasChildren = (item.children?.length ?? 0) > 0;
+
+  // A section is "active" if the current path matches the item href or any child href
+  const isActive = item.href
+    ? item.end
+      ? location.pathname === item.href
+      : location.pathname === item.href || location.pathname.startsWith(item.href + '/')
+    : (item.children?.some(
+        (c) => location.pathname === c.href || location.pathname.startsWith(c.href + '/'),
+      ) ?? false);
+
+  const triggerCls = cn(
+    'flex items-center gap-1.5 px-3.5 h-14 text-sm font-medium transition-all duration-150 whitespace-nowrap select-none relative',
+    'text-[var(--color-sidebar-foreground)] hover:text-white',
+    isActive
+      ? 'text-white after:absolute after:bottom-0 after:left-0 after:right-0 after:h-[2px] after:bg-white after:rounded-t'
+      : 'hover:bg-white/10',
+  );
+
+  const chevron = (
+    <ChevronDown
+      className={cn(
+        'h-3.5 w-3.5 transition-transform duration-150 flex-shrink-0',
+        open && 'rotate-180',
+      )}
+    />
+  );
+
+  const triggerContent = (
+    <>
+      {item.icon && <span className="flex-shrink-0">{item.icon}</span>}
+      {item.label}
+      {hasChildren && chevron}
+    </>
+  );
+
+  return (
+    <div
+      className="relative h-full flex items-center"
+      onMouseEnter={openMenu}
+      onMouseLeave={closeMenu}
+    >
+      {/* Trigger: NavLink if has href, button otherwise */}
+      {item.href ? (
+        <NavLink to={item.href} end={item.end} className={triggerCls}>
+          {triggerContent}
+        </NavLink>
+      ) : (
+        <button className={triggerCls}>
+          {triggerContent}
+        </button>
+      )}
+
+      {/* Dropdown panel */}
+      {hasChildren && open && (
+        <div
+          className={cn(
+            'absolute top-full z-50',
+            dropdownAlign === 'right' ? 'right-0' : 'left-0',
+          )}
+          // extend hover area to cover the gap between trigger and panel
+          onMouseEnter={openMenu}
+          onMouseLeave={closeMenu}
+        >
+          {/* 4px invisible bridge so mouse can travel from trigger to panel */}
+          <div className="h-1" />
+          <div className="bg-white border border-[var(--color-border)] rounded-lg shadow-xl py-1.5 min-w-[220px]">
+            {item.children!.map((child) => (
+              <NavLink
+                key={child.href}
+                to={child.href}
+                end
+                onClick={() => setOpen(false)}
+                className={({ isActive: childActive }) =>
+                  cn(
+                    'flex items-center px-4 py-2.5 text-sm transition-colors',
+                    childActive
+                      ? 'bg-[var(--color-primary-muted)] text-[var(--color-primary)] font-medium'
+                      : 'text-[var(--color-foreground)] hover:bg-[var(--color-muted)]',
+                  )
+                }
+              >
+                {child.label}
+              </NavLink>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ─── TopBar ───────────────────────────────────────────────────────────────────
 interface TopBarProps {
   onChangePassword?: () => void;
 }
@@ -131,17 +329,25 @@ export const TopBar: React.FC<TopBarProps> = ({ onChangePassword }) => {
   const [notifOpen, setNotifOpen] = useState(false);
   const { data: countData } = useNotificationUnreadCount();
   const unreadCount = countData?.count ?? 0;
-  const sseStatus = useSSEConnection();
   useNotificationSSE();
   useRealtimeUpdates();
 
+  const isVisible = (item: NavItemConfig): boolean => {
+    if (!item.roles || item.roles.length === 0) return true;
+    return role ? item.roles.includes(role) : false;
+  };
+
+  const hasAnyRightNav = RIGHT_NAV.some(isVisible);
+
+  // Resolve current page meta for the breadcrumb strip
   const commandCenterInvoiceMatch = /^\/command-center\/invoice\/[^/]+$/.test(location.pathname);
   const clarificationMatch = /^\/command-center\/invoice\/[^/]+\/clarification$/.test(location.pathname);
   const rejectionMatch = /^\/command-center\/invoice\/[^/]+\/rejection$/.test(location.pathname);
   const extractionReviewMatch = /^\/extraction-review\/[^/]+$/.test(location.pathname);
 
-  const meta = routeMeta[location.pathname] ?? (
-    clarificationMatch
+  const meta =
+    routeMeta[location.pathname] ??
+    (clarificationMatch
       ? {
           title: 'Request Clarification',
           breadcrumbs: [
@@ -171,15 +377,11 @@ export const TopBar: React.FC<TopBarProps> = ({ onChangePassword }) => {
       ? {
           title: 'Review Extraction',
           breadcrumbs: [
-            { label: 'Extraction', href: '/extraction-review' },
+            { label: 'Extraction Review', href: '/extraction-review' },
             { label: 'Review' },
           ],
         }
-      : {
-          title: 'PayU Finance',
-          breadcrumbs: [{ label: 'Home' }],
-        }
-  );
+      : { title: 'PayU Finance', breadcrumbs: [{ label: 'Home' }] });
 
   const handleLogout = async () => {
     await logout();
@@ -194,45 +396,54 @@ export const TopBar: React.FC<TopBarProps> = ({ onChangePassword }) => {
     .toUpperCase();
 
   return (
-    <header className="h-14 flex items-center justify-between px-6 bg-white border-b border-[var(--color-border)] flex-shrink-0">
-      {/* Left: title + breadcrumb */}
-      <div className="flex flex-col justify-center min-w-0">
-        <Breadcrumb items={meta.breadcrumbs} />
-        <h1 className="text-sm font-semibold text-[var(--color-foreground)] leading-tight truncate">
-          {meta.title}
-        </h1>
-      </div>
-
-      {/* Right: search, bell, user */}
-      <div className="flex items-center gap-2 flex-shrink-0">
-        {/* Search placeholder */}
-        <button className="hidden md:flex items-center gap-2 h-8 px-3 rounded border border-[var(--color-border)] bg-[var(--color-muted)] text-xs text-[var(--color-muted-foreground)] hover:bg-slate-100 transition-colors min-w-[160px]">
-          <Search className="h-3.5 w-3.5 flex-shrink-0" />
-          <span>Search…</span>
-          <kbd className="ml-auto font-mono text-[10px] bg-white border border-[var(--color-border)] px-1 rounded">⌘K</kbd>
-        </button>
-
-        {/* SSE connection status dot */}
-        {sseStatus === 'disconnected' || sseStatus === 'error' ? (
-          <div
-            title="Live updates disconnected"
-            className="flex h-7 w-7 items-center justify-center rounded text-amber-500"
-          >
-            <WifiOff className="h-3.5 w-3.5" />
+    <header className="flex flex-col flex-shrink-0">
+      {/* ── Primary navigation bar ─────────────────────────────────────────── */}
+      <div className="h-14 bg-[var(--color-sidebar)] flex items-center px-4 gap-x-1">
+        {/* Logo */}
+        <Link
+          to="/dashboard"
+          className="flex items-center gap-2 mr-3 flex-shrink-0 group"
+        >
+          <div className="flex h-7 w-7 items-center justify-center rounded bg-[var(--color-primary)] flex-shrink-0 group-hover:bg-[var(--color-primary-hover)] transition-colors">
+            <span className="text-xs font-bold text-white">P</span>
           </div>
-        ) : sseStatus === 'connected' ? (
-          <div title="Live updates active" className="flex h-7 w-7 items-center justify-center rounded text-[var(--color-success)]">
-            <Wifi className="h-3.5 w-3.5" />
-          </div>
-        ) : null}
+          <span className="text-sm font-semibold text-white tracking-tight whitespace-nowrap">
+            PayU Finance
+          </span>
+        </Link>
+
+        {/* Divider */}
+        <div className="h-5 w-px bg-[var(--color-sidebar-border)] mr-1 flex-shrink-0" />
+
+        {/* Left nav items */}
+        <nav className="flex items-center h-full flex-1 min-w-0 overflow-visible">
+          {LEFT_NAV.filter(isVisible).map((item) => (
+            <HoverNavItem key={item.id} item={item} />
+          ))}
+        </nav>
+
+        {/* Right nav items */}
+        {hasAnyRightNav && (
+          <>
+            <div className="h-5 w-px bg-[var(--color-sidebar-border)] mx-1 flex-shrink-0" />
+            <nav className="flex items-center h-full flex-shrink-0 overflow-visible">
+              {RIGHT_NAV.filter(isVisible).map((item) => (
+                <HoverNavItem key={item.id} item={item} dropdownAlign="right" />
+              ))}
+            </nav>
+          </>
+        )}
+
+        {/* Divider before actions */}
+        <div className="h-5 w-px bg-[var(--color-sidebar-border)] mx-2 flex-shrink-0" />
 
         {/* Notification bell */}
         <button
           onClick={() => setNotifOpen(true)}
           aria-label="Open notifications"
           className={cn(
-            'relative h-8 w-8 flex items-center justify-center rounded transition-colors',
-            'hover:bg-[var(--color-muted)] text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)]',
+            'relative h-8 w-8 flex items-center justify-center rounded transition-colors flex-shrink-0',
+            'text-[var(--color-sidebar-foreground)] hover:text-white hover:bg-white/10',
           )}
         >
           <Bell className="h-4 w-4" />
@@ -248,11 +459,11 @@ export const TopBar: React.FC<TopBarProps> = ({ onChangePassword }) => {
         {/* User dropdown */}
         <DropdownMenu.Root>
           <DropdownMenu.Trigger asChild>
-            <button className="flex items-center gap-2 h-8 pl-1 pr-2 rounded hover:bg-[var(--color-muted)] transition-colors outline-none">
-              <div className="h-6 w-6 rounded-full bg-[var(--color-primary)] flex items-center justify-center">
+            <button className="flex items-center gap-2 h-8 pl-2 pr-2 ml-1 rounded hover:bg-white/10 transition-colors outline-none flex-shrink-0">
+              <div className="h-6 w-6 rounded-full bg-[var(--color-primary)] flex items-center justify-center flex-shrink-0">
                 <span className="text-[10px] font-semibold text-white">{initials}</span>
               </div>
-              <span className="hidden sm:block text-xs font-medium text-[var(--color-foreground)]">
+              <span className="hidden sm:block text-xs font-medium text-[var(--color-sidebar-foreground)]">
                 {formatRoleLabel(role)}
               </span>
             </button>
@@ -262,7 +473,7 @@ export const TopBar: React.FC<TopBarProps> = ({ onChangePassword }) => {
             <DropdownMenu.Content
               className="z-50 min-w-[180px] rounded-lg border border-[var(--color-border)] bg-white shadow-lg p-1"
               align="end"
-              sideOffset={6}
+              sideOffset={8}
             >
               <DropdownMenu.Label className="px-2 py-1.5 text-xs text-[var(--color-muted-foreground)]">
                 {formatRoleLabel(role)}
@@ -296,6 +507,11 @@ export const TopBar: React.FC<TopBarProps> = ({ onChangePassword }) => {
             </DropdownMenu.Content>
           </DropdownMenu.Portal>
         </DropdownMenu.Root>
+      </div>
+
+      {/* ── Breadcrumb / page-title strip ──────────────────────────────────── */}
+      <div className="h-8 bg-white border-b border-[var(--color-border)] flex items-center px-4 flex-shrink-0">
+        <Breadcrumb items={meta.breadcrumbs} />
       </div>
     </header>
   );

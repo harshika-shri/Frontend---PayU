@@ -21,6 +21,7 @@ import {
   XCircle,
   Briefcase,
   Inbox,
+  Clock,
 } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { UserRole } from '../../features/auth/constants/userRole';
@@ -81,7 +82,7 @@ const navGroups: NavGroup[] = [
         roles: CC_ROLES,
       },
       {
-        label: 'Ready to Pay',
+        label: 'Approved',
         icon: <Banknote className="h-4 w-4" />,
         href: '/command-center/ready-to-pay',
         roles: CC_ROLES,
@@ -90,6 +91,12 @@ const navGroups: NavGroup[] = [
         label: 'Rejected',
         icon: <XCircle className="h-4 w-4" />,
         href: '/command-center/rejected',
+        roles: CC_ROLES,
+      },
+      {
+        label: 'Overdue',
+        icon: <Clock className="h-4 w-4" />,
+        href: '/command-center/overdue',
         roles: CC_ROLES,
       },
     ],

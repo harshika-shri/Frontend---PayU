@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
-import { TrendingUp } from 'lucide-react';
+import { TrendingUp, ChevronDown } from 'lucide-react';
 import { Modal, ModalFooter } from '../../../components/ui/Modal';
 import { Button } from '../../../components/ui/Button';
-import { useEscalateInvoice } from '../hooks/useWorkflowActions';
+import { Skeleton } from '../../../components/ui/Skeleton';
+import { useEscalateInvoice, useListManagers } from '../hooks/useWorkflowActions';
 import { useAuth } from '../../auth/hooks/useAuth';
+import { cn } from '../../../utils/cn';
 
 const ESCALATION_REASONS = [
   'Requires manager decision',
@@ -32,38 +34,38 @@ export const EscalateDialog: React.FC<EscalateDialogProps> = ({
 }) => {
   const { userId } = useAuth();
   const [reason, setReason] = useState('');
+  const [customReason, setCustomReason] = useState('');
   const [managerId, setManagerId] = useState('');
-  const [managerIdError, setManagerIdError] = useState('');
-  const mutation = useEscalateInvoice(invoiceId);
+  const [managerOpen, setManagerOpen] = useState(false);
 
-  const isValidUuid = (v: string) =>
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
+  const mutation = useEscalateInvoice(invoiceId);
+  const { data: managers = [], isLoading: loadingManagers } = useListManagers();
+
+  const selectedManager = managers.find((m) => m.id === managerId);
+  const effectiveReason = reason === 'Other' ? customReason.trim() : reason;
 
   const handleClose = () => {
     if (mutation.isPending) return;
     setReason('');
+    setCustomReason('');
     setManagerId('');
-    setManagerIdError('');
+    setManagerOpen(false);
     onClose();
   };
 
   const handleSubmit = async () => {
-    if (!userId) return;
-    if (!isValidUuid(managerId)) {
-      setManagerIdError('Enter a valid Manager ID (UUID format).');
-      return;
-    }
-    if (!reason) return;
+    if (!userId || !managerId || !effectiveReason) return;
     await mutation.mutateAsync({
       escalated_by: userId,
       manager_id: managerId,
-      reason,
+      reason: effectiveReason,
     });
     handleClose();
     onSuccess();
   };
 
-  const canSubmit = reason.trim().length > 0 && managerId.trim().length > 0;
+  const canSubmit =
+    effectiveReason.length > 0 && managerId.length > 0 && !mutation.isPending;
 
   return (
     <Modal
@@ -73,8 +75,9 @@ export const EscalateDialog: React.FC<EscalateDialogProps> = ({
       description={`Escalate ${invoiceNumber ? `invoice ${invoiceNumber}` : 'this invoice'} to a Finance Manager.`}
       size="md"
     >
-      <div className="space-y-4">
-        <div className="space-y-1.5">
+      <div className="space-y-5">
+        {/* Reason chips */}
+        <div className="space-y-2">
           <label className="text-xs font-medium text-[var(--color-muted-foreground)] uppercase tracking-wide">
             Reason
           </label>
@@ -84,11 +87,12 @@ export const EscalateDialog: React.FC<EscalateDialogProps> = ({
                 key={r}
                 type="button"
                 onClick={() => setReason(r)}
-                className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+                className={cn(
+                  'px-3 py-1.5 rounded-full text-xs font-medium border transition-colors',
                   reason === r
                     ? 'bg-[var(--color-primary)] text-white border-[var(--color-primary)]'
-                    : 'bg-white text-[var(--color-foreground)] border-[var(--color-border)] hover:border-slate-400'
-                }`}
+                    : 'bg-white text-[var(--color-foreground)] border-[var(--color-border)] hover:border-slate-400',
+                )}
               >
                 {r}
               </button>
@@ -97,35 +101,76 @@ export const EscalateDialog: React.FC<EscalateDialogProps> = ({
           {reason === 'Other' && (
             <input
               type="text"
+              value={customReason}
               placeholder="Describe the reason…"
-              onChange={(e) => setReason(e.target.value)}
+              onChange={(e) => setCustomReason(e.target.value)}
               className="mt-2 flex h-9 w-full rounded border border-[var(--color-border)] bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-ring)]"
             />
           )}
         </div>
 
-        <div className="space-y-1.5">
+        {/* Manager picker */}
+        <div className="space-y-2">
           <label className="text-xs font-medium text-[var(--color-muted-foreground)] uppercase tracking-wide">
-            Manager ID
+            Assign to Manager
           </label>
-          <input
-            type="text"
-            value={managerId}
-            onChange={(e) => {
-              setManagerId(e.target.value);
-              setManagerIdError('');
-            }}
-            placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-            className={`flex h-9 w-full rounded border bg-white px-3 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-ring)] ${
-              managerIdError ? 'border-[var(--color-destructive)]' : 'border-[var(--color-border)]'
-            }`}
-          />
-          {managerIdError && (
-            <p className="text-xs text-[var(--color-destructive)]">{managerIdError}</p>
+
+          {loadingManagers ? (
+            <Skeleton className="h-9 w-full rounded" />
+          ) : managers.length === 0 ? (
+            <p className="text-sm text-[var(--color-muted-foreground)] py-2">
+              No Finance Managers found in the system.
+            </p>
+          ) : (
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setManagerOpen((o) => !o)}
+                className={cn(
+                  'flex w-full items-center justify-between h-9 rounded border bg-white px-3 text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--color-ring)]',
+                  managerId
+                    ? 'border-[var(--color-border)] text-[var(--color-foreground)]'
+                    : 'border-[var(--color-border)] text-[var(--color-muted-foreground)]',
+                )}
+              >
+                <span>
+                  {selectedManager
+                    ? `${selectedManager.name} (${selectedManager.email})`
+                    : 'Select a manager…'}
+                </span>
+                <ChevronDown className="h-4 w-4 flex-shrink-0 text-[var(--color-muted-foreground)]" />
+              </button>
+
+              {managerOpen && (
+                <div className="absolute z-50 mt-1 w-full rounded border border-[var(--color-border)] bg-white shadow-lg">
+                  <ul className="max-h-48 overflow-y-auto py-1">
+                    {managers.map((m) => (
+                      <li key={m.id}>
+                        <button
+                          type="button"
+                          className={cn(
+                            'w-full text-left px-3 py-2.5 text-sm hover:bg-[var(--color-muted)] transition-colors',
+                            managerId === m.id && 'bg-[var(--color-primary-muted)] font-medium',
+                          )}
+                          onClick={() => {
+                            setManagerId(m.id);
+                            setManagerOpen(false);
+                          }}
+                        >
+                          <span className="font-medium text-[var(--color-foreground)]">
+                            {m.name}
+                          </span>
+                          <span className="ml-2 text-xs text-[var(--color-muted-foreground)]">
+                            {m.email}
+                          </span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
           )}
-          <p className="text-xs text-[var(--color-muted-foreground)]">
-            The UUID of the Finance Manager to escalate to.
-          </p>
         </div>
       </div>
 

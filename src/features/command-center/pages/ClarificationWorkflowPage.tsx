@@ -1,14 +1,16 @@
 import React, { useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Loader2, Send, Mail, RefreshCw } from 'lucide-react';
+import { ArrowLeft, Send, Mail } from 'lucide-react';
 import { PageHeader } from '../../../components/ui/PageHeader';
 import { Button } from '../../../components/ui/Button';
 import { Card } from '../../../components/ui/Card';
 import { ErrorState } from '../../../components/ui/ErrorState';
+import { PageLoader } from '../../../components/ui/PageLoader';
 import {
   useGenerateClarificationDraft,
   useSendClarification,
 } from '../hooks/useWorkflowActions';
+import { useInvoiceReview } from '../hooks/useInvoiceReview';
 import { useAuth } from '../../auth/hooks/useAuth';
 import type { ClarificationDraftResponse } from '../types/workflow.types';
 
@@ -19,6 +21,7 @@ export const ClarificationWorkflowPage: React.FC = () => {
   const bucket = (location.state as { bucket?: string } | null)?.bucket;
 
   const { userId } = useAuth();
+  const { data: review, isLoading: reviewLoading } = useInvoiceReview(invoiceId ?? '');
   const generateMutation = useGenerateClarificationDraft(invoiceId ?? '');
   const sendMutation = useSendClarification(invoiceId ?? '');
 
@@ -26,6 +29,9 @@ export const ClarificationWorkflowPage: React.FC = () => {
   const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');
   const [sent, setSent] = useState(false);
+
+  const clarificationAlreadySent = review?.validation.clarification_sent ?? false;
+  const draftLocked = sent || clarificationAlreadySent;
 
   const backHref = bucket
     ? `/command-center/invoice/${invoiceId}`
@@ -48,7 +54,11 @@ export const ClarificationWorkflowPage: React.FC = () => {
     return <ErrorState kind="notFound" />;
   }
 
-  if (sent) {
+  if (reviewLoading) {
+    return <PageLoader />;
+  }
+
+  if (draftLocked) {
     return (
       <div>
         <PageHeader title="Clarification Sent" />
@@ -121,7 +131,7 @@ export const ClarificationWorkflowPage: React.FC = () => {
               </Button>
               {generateMutation.isError && (
                 <Button variant="ghost" size="sm" onClick={handleGenerate}>
-                  <RefreshCw className="h-3.5 w-3.5 mr-1" /> Retry
+                  Try again
                 </Button>
               )}
             </div>
@@ -186,23 +196,7 @@ export const ClarificationWorkflowPage: React.FC = () => {
                   />
                 </div>
 
-                <div className="flex items-center justify-between pt-2 border-t border-[var(--color-border)]">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={handleGenerate}
-                    disabled={generateMutation.isPending || sendMutation.isPending}
-                    leftIcon={
-                      generateMutation.isPending ? (
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      ) : (
-                        <RefreshCw className="h-3.5 w-3.5" />
-                      )
-                    }
-                  >
-                    Regenerate draft
-                  </Button>
-
+                <div className="flex items-center justify-end pt-2 border-t border-[var(--color-border)]">
                   <Button
                     size="sm"
                     onClick={handleSend}

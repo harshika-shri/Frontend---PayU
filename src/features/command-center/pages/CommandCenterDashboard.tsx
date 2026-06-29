@@ -8,6 +8,7 @@ import {
   XCircle,
   LayoutDashboard,
   ArrowRight,
+  Clock,
 } from 'lucide-react';
 import { PageHeader } from '../../../components/ui/PageHeader';
 import { Skeleton } from '../../../components/ui/Skeleton';
@@ -51,8 +52,8 @@ const BUCKETS: BucketCard[] = [
   },
   {
     bucket: 'ready-to-pay',
-    label: 'Ready to Pay',
-    description: 'Fully approved invoices ready for payment.',
+    label: 'Approved',
+    description: 'Invoices approved and ready for payment processing.',
     icon: <Banknote className="h-5 w-5 text-[var(--color-primary)]" />,
     iconBg: 'bg-[var(--color-primary-muted)]',
     href: '/command-center/ready-to-pay',
@@ -64,6 +65,14 @@ const BUCKETS: BucketCard[] = [
     icon: <XCircle className="h-5 w-5 text-[var(--color-destructive)]" />,
     iconBg: 'bg-[var(--color-destructive-muted)]',
     href: '/command-center/rejected',
+  },
+  {
+    bucket: 'overdue',
+    label: 'Overdue',
+    description: 'Invoices past their due date that require immediate attention.',
+    icon: <Clock className="h-5 w-5 text-[var(--color-destructive)]" />,
+    iconBg: 'bg-[var(--color-destructive-muted)]',
+    href: '/command-center/overdue',
   },
 ];
 
@@ -79,6 +88,7 @@ export const CommandCenterDashboard: React.FC = () => {
       'escalated': data.escalated,
       'ready-to-pay': data.ready_to_pay,
       'rejected': data.rejected,
+      'overdue': data.overdue,
     };
     return map[bucket];
   };

@@ -112,6 +112,7 @@ export interface ReviewSummaryDetails {
 
 export interface InvoiceValidationResponse {
   validation_outcome: string | null;
+  clarification_sent: boolean;
   issues: ValidationIssueDetails[];
   review_summary: ReviewSummaryDetails | null;
 }

@@ -12,6 +12,7 @@ const bucketPath: Record<DashboardBucket, string> = {
   'escalated': '/dashboard/invoices/escalated',
   'ready-to-pay': '/dashboard/invoices/ready-to-pay',
   'rejected': '/dashboard/invoices/rejected',
+  'overdue': '/dashboard/invoices/overdue',
 };
 
 export const dashboardService = {
