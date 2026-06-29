@@ -1,19 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
-  Legend,
-} from 'recharts';
-import {
   TrendingUp,
   Inbox,
   Briefcase,
@@ -22,7 +9,6 @@ import {
   FileText,
   Clock,
   CheckCircle2,
-  Timer,
   Users,
 } from 'lucide-react';
 import { PageHeader } from '../../../components/ui/PageHeader';
@@ -31,24 +17,28 @@ import { Skeleton } from '../../../components/ui/Skeleton';
 import { ErrorState } from '../../../components/ui/ErrorState';
 import { useFinanceManagerSummary } from '../../finance-manager/hooks/useFinanceManager';
 import { useDashboardSummary } from '../../command-center/hooks/useDashboard';
-import { useReportPerformance, useReportVendors, useReportAssociates } from '../../reports/hooks/useReports';
-import type { FinanceManagerSummary } from '../../finance-manager/types/financeManager.types';
-import type { DashboardSummary } from '../../command-center/types/dashboard.types';
+import {
+  useManagerPendingWorkByVendor,
+  useManagerStatusDistribution,
+  useManagerTeamPerformance,
+  useManagerValidationBreakdown,
+} from '../hooks/useDashboardCharts';
+import {
+  AnalyticsChartCard,
+  chartHasData,
+} from './charts/AnalyticsChartCard';
+import { DonutChartView } from './charts/DonutChartView';
+import { HorizontalBarChartView } from './charts/HorizontalBarChartView';
 
-// ── Palette ──────────────────────────────────────────────────────────────────
+import type { FinanceManagerSummary } from '../../finance-manager/types/financeManager.types';
+
 const C = {
-  ready_for_approval: '#16a34a',
-  needs_review: '#d97706',
   escalated: '#0284c7',
+  needs_review: '#d97706',
   ready_to_pay: '#1d4ed8',
   rejected: '#dc2626',
-  overdue: '#9333ea',
-  under_review: '#d97706',
-  approved: '#16a34a',
-  claimed: '#1d4ed8',
 } as const;
 
-// ── Work queue card config ────────────────────────────────────────────────────
 const QUEUE_CARDS = [
   {
     key: 'my_escalated' as keyof FinanceManagerSummary,
@@ -92,8 +82,6 @@ const QUEUE_CARDS = [
   },
 ] as const;
 
-// ── Sub-components ────────────────────────────────────────────────────────────
-
 interface KpiTileProps {
   label: string;
   value: string | number;
@@ -132,133 +120,24 @@ const KpiTile: React.FC<KpiTileProps> = ({ label, value, sub, loading, accent, I
   </div>
 );
 
-const ChartCard: React.FC<{
-  title: string;
-  subtitle?: string;
-  loading?: boolean;
-  empty?: boolean;
-  emptyText?: string;
-  children: React.ReactNode;
-  className?: string;
-}> = ({ title, subtitle, loading, empty, emptyText = 'No data available', children, className = '' }) => (
-  <div className={`rounded-lg border border-[var(--color-border)] bg-white p-5 ${className}`}>
-    <p className="text-xs font-semibold uppercase tracking-widest text-[var(--color-muted-foreground)] mb-0.5">
-      {title}
-    </p>
-    {subtitle && (
-      <p className="text-[11px] text-[var(--color-muted-foreground)] mb-4">{subtitle}</p>
-    )}
-    {!subtitle && <div className="mb-4" />}
-    {loading ? (
-      <Skeleton className="h-52 w-full rounded" />
-    ) : empty ? (
-      <div className="flex h-52 flex-col items-center justify-center gap-2 text-[var(--color-muted-foreground)]">
-        <FileText className="h-8 w-8 opacity-30" />
-        <p className="text-sm">{emptyText}</p>
-      </div>
-    ) : (
-      children
-    )}
-  </div>
-);
-
-const ChartTooltip = ({
-  active,
-  payload,
-  label,
-}: {
-  active?: boolean;
-  payload?: { name: string; value: number; fill?: string; color?: string }[];
-  label?: string;
-}) => {
-  if (!active || !payload?.length) return null;
-  return (
-    <div className="rounded-md border border-[var(--color-border)] bg-white px-3 py-2 shadow-md min-w-[120px]">
-      <p className="text-[11px] font-semibold text-[var(--color-foreground)] mb-1.5">
-        {label ?? payload[0]?.name}
-      </p>
-      {payload.map((p) => (
-        <div key={p.name} className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-1.5">
-            <span
-              className="inline-block h-2 w-2 rounded-full flex-shrink-0"
-              style={{ backgroundColor: p.fill ?? p.color ?? '#64748b' }}
-            />
-            <span className="text-[10px] text-slate-500">{p.name}</span>
-          </div>
-          <span className="text-[11px] font-semibold text-[var(--color-foreground)]">{p.value}</span>
-        </div>
-      ))}
-    </div>
-  );
-};
-
-const formatHours = (h: number | undefined | null): string => {
-  if (h == null || isNaN(h)) return '—';
-  if (h < 1) return `${Math.round(h * 60)}m`;
-  return `${h.toFixed(1)}h`;
-};
-
-// ── Main component ────────────────────────────────────────────────────────────
-
 export const FinanceManagerDashboard: React.FC = () => {
   const navigate = useNavigate();
 
   const { data: mgr, isLoading: mgrLoading, isError: mgrError, refetch: mgrRefetch } =
     useFinanceManagerSummary();
   const { data: pipeline, isLoading: pipeLoading } = useDashboardSummary();
-  const { data: perf, isLoading: perfLoading } = useReportPerformance();
-  const { data: vendors, isLoading: vendorsLoading } = useReportVendors();
-  const { data: associates, isLoading: assocLoading } = useReportAssociates();
+
+  const statusChart = useManagerStatusDistribution();
+  const pendingVendorChart = useManagerPendingWorkByVendor();
+  const teamChart = useManagerTeamPerformance();
+  const validationChart = useManagerValidationBreakdown();
 
   if (mgrError) return <ErrorState kind="generic" onRetry={() => mgrRefetch()} />;
 
   const total = pipeline?.total ?? 0;
-
-  // Platform pipeline bar data
-  const pipelineBarData: { name: string; value: number; fill: string }[] = [
-    { name: 'Ready', value: pipeline?.ready_for_approval ?? 0, fill: C.ready_for_approval },
-    { name: 'Needs Review', value: pipeline?.needs_review ?? 0, fill: C.needs_review },
-    { name: 'Escalated', value: pipeline?.escalated ?? 0, fill: C.escalated },
-    { name: 'Approved', value: pipeline?.ready_to_pay ?? 0, fill: C.ready_to_pay },
-    { name: 'Rejected', value: pipeline?.rejected ?? 0, fill: C.rejected },
-    { name: 'Overdue', value: pipeline?.overdue ?? 0, fill: C.overdue },
-  ];
-
-  // Work queue donut data
-  const queueDonutData = QUEUE_CARDS.map((c) => ({
-    name: c.label,
-    value: (mgr?.[c.key] as number) ?? 0,
-    color: c.hex,
-  })).filter((d) => d.value > 0);
-
-  const totalQueueItems = QUEUE_CARDS.reduce(
-    (sum, c) => sum + ((mgr?.[c.key] as number) ?? 0),
-    0,
-  );
-
-  // Top 8 vendors
-  const vendorData = (vendors ?? [])
-    .slice(0, 8)
-    .map((v) => ({
-      name: v.vendor_name.length > 18 ? v.vendor_name.slice(0, 16) + '…' : v.vendor_name,
-      count: v.invoice_count,
-    }))
-    .reverse();
-
-  // Associate workload — top 8
-  const assocData = (associates ?? []).slice(0, 8).map((a) => ({
-    name: a.associate_name.split(' ')[0], // first name only
-    'Under Review': a.under_review,
-    Approved: a.approved,
-    Escalated: a.escalated,
-    Rejected: a.rejected,
-  }));
-
-  const pipelineEmpty = !pipeLoading && total === 0;
-  const queueEmpty = !mgrLoading && totalQueueItems === 0;
-  const vendorsEmpty = !vendorsLoading && (!vendors || vendors.length === 0);
-  const assocEmpty = !assocLoading && (!associates || associates.length === 0);
+  const needsReview = pipeline?.needs_review ?? 0;
+  const readyForApproval = pipeline?.ready_for_approval ?? 0;
+  const escalated = pipeline?.escalated ?? 0;
 
   return (
     <div>
@@ -277,7 +156,6 @@ export const FinanceManagerDashboard: React.FC = () => {
         }
       />
 
-      {/* ── KPI tiles ── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <KpiTile
           label="Total Invoices"
@@ -297,185 +175,82 @@ export const FinanceManagerDashboard: React.FC = () => {
           iconBg="bg-purple-50"
         />
         <KpiTile
-          label="Avg Approval Time"
-          value={formatHours(perf?.avg_approval_time_hours)}
-          sub="From upload to approval"
-          loading={perfLoading}
-          accent="#16a34a"
-          Icon={Timer}
-          iconBg="bg-green-50"
+          label="Needs Review"
+          value={needsReview}
+          sub="Awaiting associate action"
+          loading={pipeLoading}
+          accent="#d97706"
+          Icon={Inbox}
+          iconBg="bg-amber-50"
         />
         <KpiTile
-          label="Avg Rejection Time"
-          value={formatHours(perf?.avg_rejection_time_hours)}
-          sub="From upload to rejection"
-          loading={perfLoading}
-          accent="#dc2626"
-          Icon={Timer}
-          iconBg="bg-red-50"
+          label="Ready for Approval"
+          value={readyForApproval}
+          sub={`${escalated} escalated company-wide`}
+          loading={pipeLoading}
+          accent="#16a34a"
+          Icon={CheckCircle2}
+          iconBg="bg-green-50"
         />
       </div>
 
-      {/* ── Charts row 1: Pipeline + Work Queue ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 mb-4">
-        {/* Platform pipeline bar */}
-        <ChartCard
-          title="Platform Pipeline"
-          subtitle="Invoice count across all processing stages"
-          loading={pipeLoading}
-          empty={pipelineEmpty}
-          emptyText="No invoices in the pipeline"
-          className="lg:col-span-3"
+      <p className="text-xs font-semibold uppercase tracking-widest text-[var(--color-muted-foreground)] mb-3">
+        Analytics
+      </p>
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 mb-4">
+        <AnalyticsChartCard
+          title="Overall Invoice Status Distribution"
+          description="System-wide workload across key invoice states"
+          loading={statusChart.isLoading}
+          isError={statusChart.isError}
+          onRetry={() => statusChart.refetch()}
+          empty={!statusChart.isLoading && !chartHasData(statusChart.data?.values)}
+          emptyText="No invoices in the system"
         >
-          <ResponsiveContainer width="100%" height={210}>
-            <BarChart data={pipelineBarData} margin={{ top: 4, right: 8, left: -20, bottom: 4 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
-              <XAxis
-                dataKey="name"
-                tick={{ fontSize: 10, fill: '#64748b' }}
-                tickLine={false}
-                axisLine={false}
-              />
-              <YAxis
-                tick={{ fontSize: 10, fill: '#64748b' }}
-                tickLine={false}
-                axisLine={false}
-                allowDecimals={false}
-              />
-              <Tooltip content={<ChartTooltip />} />
-              <Bar dataKey="value" radius={[4, 4, 0, 0]} maxBarSize={52}>
-                {pipelineBarData.map((entry) => (
-                  <Cell key={entry.name} fill={entry.fill} />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        </ChartCard>
+          {statusChart.data && <DonutChartView data={statusChart.data} />}
+        </AnalyticsChartCard>
 
-        {/* My Work Queue donut */}
-        <ChartCard
-          title="My Work Queue"
-          subtitle="Distribution of assigned items"
-          loading={mgrLoading}
-          empty={queueEmpty}
-          emptyText="No items in your queue"
-          className="lg:col-span-2"
+        <AnalyticsChartCard
+          title="Pending Work by Vendor"
+          description="Vendors with the highest number of invoices currently requiring action"
+          loading={pendingVendorChart.isLoading}
+          isError={pendingVendorChart.isError}
+          onRetry={() => pendingVendorChart.refetch()}
+          empty={!pendingVendorChart.isLoading && !chartHasData(pendingVendorChart.data?.values)}
+          emptyText="No pending vendor workload"
         >
-          <ResponsiveContainer width="100%" height={180}>
-            <PieChart>
-              <Pie
-                data={queueDonutData}
-                cx="50%"
-                cy="50%"
-                innerRadius={50}
-                outerRadius={78}
-                dataKey="value"
-                paddingAngle={3}
-                strokeWidth={0}
-              >
-                {queueDonutData.map((entry) => (
-                  <Cell key={entry.name} fill={entry.color} />
-                ))}
-              </Pie>
-              <Tooltip content={<ChartTooltip />} />
-              <Legend
-                iconType="circle"
-                iconSize={7}
-                formatter={(value: string) => (
-                  <span style={{ fontSize: 10, color: '#64748b' }}>{value}</span>
-                )}
-              />
-            </PieChart>
-          </ResponsiveContainer>
-        </ChartCard>
+          {pendingVendorChart.data && (
+            <HorizontalBarChartView data={pendingVendorChart.data} />
+          )}
+        </AnalyticsChartCard>
       </div>
 
-      {/* ── Charts row 2: Associate Workload + Top Vendors ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 mb-6">
-        {/* Associate workload stacked bar */}
-        <ChartCard
-          title="Associate Workload"
-          subtitle="Invoice volume per finance associate"
-          loading={assocLoading}
-          empty={assocEmpty}
-          emptyText="No associate data available"
-          className="lg:col-span-3"
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 mb-6">
+        <AnalyticsChartCard
+          title="Team Performance"
+          description="Invoices processed by each finance associate"
+          loading={teamChart.isLoading}
+          isError={teamChart.isError}
+          onRetry={() => teamChart.refetch()}
+          empty={!teamChart.isLoading && !chartHasData(teamChart.data?.values)}
+          emptyText="No associate processing activity yet"
         >
-          <ResponsiveContainer width="100%" height={220}>
-            <BarChart data={assocData} margin={{ top: 4, right: 8, left: -20, bottom: 4 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
-              <XAxis
-                dataKey="name"
-                tick={{ fontSize: 10, fill: '#64748b' }}
-                tickLine={false}
-                axisLine={false}
-              />
-              <YAxis
-                tick={{ fontSize: 10, fill: '#64748b' }}
-                tickLine={false}
-                axisLine={false}
-                allowDecimals={false}
-              />
-              <Tooltip content={<ChartTooltip />} />
-              <Legend
-                iconType="circle"
-                iconSize={7}
-                formatter={(value: string) => (
-                  <span style={{ fontSize: 10, color: '#64748b' }}>{value}</span>
-                )}
-              />
-              <Bar dataKey="Under Review" stackId="a" fill={C.under_review} />
-              <Bar dataKey="Approved" stackId="a" fill={C.approved} />
-              <Bar dataKey="Escalated" stackId="a" fill={C.escalated} />
-              <Bar
-                dataKey="Rejected"
-                stackId="a"
-                fill={C.rejected}
-                radius={[4, 4, 0, 0]}
-              />
-            </BarChart>
-          </ResponsiveContainer>
-        </ChartCard>
+          {teamChart.data && <HorizontalBarChartView data={teamChart.data} />}
+        </AnalyticsChartCard>
 
-        {/* Top vendors horizontal bar */}
-        <ChartCard
-          title="Top Vendors"
-          subtitle="By invoice submission volume"
-          loading={vendorsLoading}
-          empty={vendorsEmpty}
-          emptyText="No vendor data available"
-          className="lg:col-span-2"
+        <AnalyticsChartCard
+          title="Validation Failure Distribution"
+          description="Organization-wide unresolved issues by validation category"
+          loading={validationChart.isLoading}
+          isError={validationChart.isError}
+          onRetry={() => validationChart.refetch()}
+          empty={!validationChart.isLoading && !chartHasData(validationChart.data?.values)}
+          emptyText="No open validation issues"
         >
-          <ResponsiveContainer width="100%" height={220}>
-            <BarChart
-              data={vendorData}
-              layout="vertical"
-              margin={{ top: 4, right: 16, left: 8, bottom: 4 }}
-            >
-              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" horizontal={false} />
-              <XAxis
-                type="number"
-                tick={{ fontSize: 10, fill: '#64748b' }}
-                tickLine={false}
-                axisLine={false}
-                allowDecimals={false}
-              />
-              <YAxis
-                type="category"
-                dataKey="name"
-                tick={{ fontSize: 10, fill: '#64748b' }}
-                tickLine={false}
-                axisLine={false}
-                width={80}
-              />
-              <Tooltip content={<ChartTooltip />} />
-              <Bar dataKey="count" name="Invoices" fill="#1d4ed8" radius={[0, 4, 4, 0]} maxBarSize={20} />
-            </BarChart>
-          </ResponsiveContainer>
-        </ChartCard>
+          {validationChart.data && <HorizontalBarChartView data={validationChart.data} />}
+        </AnalyticsChartCard>
       </div>
 
-      {/* ── My Work Queue action cards ── */}
       <p className="text-xs font-semibold uppercase tracking-widest text-[var(--color-muted-foreground)] mb-3">
         My Work Queue
       </p>
@@ -512,7 +287,6 @@ export const FinanceManagerDashboard: React.FC = () => {
         ))}
       </div>
 
-      {/* ── Associate summary strip ── */}
       <div className="rounded-lg border border-[var(--color-border)] bg-white p-5">
         <p className="text-xs font-semibold uppercase tracking-widest text-[var(--color-muted-foreground)] mb-4">
           Team Overview
