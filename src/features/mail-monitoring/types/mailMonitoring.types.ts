@@ -4,19 +4,24 @@ export interface MonitoringStatusResponse {
   last_processed_history_id: number | null;
 }
 
-export interface InvoiceProcessingItem {
-  id: string;
-  invoice_number: string | null;
-  invoice_date: string | null;
-  received_email: string | null;
-  extraction_status: string;
-  invoice_status: string | null;
-  total_amount: number | null;
-  currency: string | null;
-  created_at: string | null;
+export type MailStatus =
+  | 'invoice_created'
+  | 'attachment_processed'
+  | 'no_attachment';
+
+export interface RecentMailItem {
+  message_id: string;
+  mailbox: string | null;
+  subject: string | null;
+  received_from: string | null;
+  attachment_filename: string | null;
+  processed_at: string;
+  has_invoice: boolean;
+  mail_status: MailStatus;
+  invoice_id: string | null;
 }
 
-export interface InvoiceProcessingListResponse {
-  items: InvoiceProcessingItem[];
+export interface RecentMailListResponse {
+  items: RecentMailItem[];
   total: number;
 }

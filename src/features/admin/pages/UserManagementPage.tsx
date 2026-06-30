@@ -1,22 +1,34 @@
 import React, { useEffect, useState } from 'react';
+import { Plus } from 'lucide-react';
+import toast from 'react-hot-toast';
 import { ApiUserRole } from '../../auth/constants/userRole';
+import { PageHeader } from '../../../components/ui/PageHeader';
+import { Button } from '../../../components/ui/Button';
+import { Select } from '../../../components/ui/Select';
+import { PageSpinner } from '../../../components/ui/Spinner';
 import { UserList } from '../components/UserList';
 import { CreateUserModal } from '../components/CreateUserModal';
 import { userService } from '../services/userService';
 import type { UserResponse } from '../types/user.types';
-import { Plus, Users } from 'lucide-react';
-import toast from 'react-hot-toast';
+
+const ROLE_FILTER_OPTIONS = [
+  { value: 'all', label: 'All finance users' },
+  { value: ApiUserRole.FINANCE_ASSOCIATE, label: 'Finance Associate' },
+  { value: ApiUserRole.FINANCE_MANAGER, label: 'Finance Manager' },
+];
 
 export const UserManagementPage: React.FC = () => {
   const [users, setUsers] = useState<UserResponse[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [roleFilter, setRoleFilter] = useState<string>('');
+  const [roleFilter, setRoleFilter] = useState('all');
 
   const fetchUsers = async () => {
     setIsLoading(true);
     try {
-      const data = await userService.getUsers(roleFilter || undefined);
+      const data = await userService.getUsers(
+        roleFilter === 'all' ? undefined : roleFilter,
+      );
       setUsers(data);
     } catch {
       toast.error('Failed to load users');
@@ -42,39 +54,31 @@ export const UserManagementPage: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
-            <Users className="w-6 h-6 text-slate-500" />
-            User Management
-          </h1>
-          <p className="mt-1 text-sm text-slate-500">
-            Manage finance associates and finance managers for your company.
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          <select
-            value={roleFilter}
-            onChange={(e) => setRoleFilter(e.target.value)}
-            className="px-3 py-2.5 text-sm border border-slate-300 rounded-lg text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-slate-900"
-          >
-            <option value="">All Finance Users</option>
-            <option value={ApiUserRole.FINANCE_ASSOCIATE}>Finance Associate (FA)</option>
-            <option value={ApiUserRole.FINANCE_MANAGER}>Finance Manager (FM)</option>
-          </select>
-          <button
-            onClick={() => setIsModalOpen(true)}
-            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium text-white bg-slate-900 border border-transparent rounded-lg hover:bg-slate-800 transition-colors"
-          >
-            <Plus className="w-4 h-4" />
-            Onboard User
-          </button>
-        </div>
-      </div>
+    <div>
+      <PageHeader
+        title="User Management"
+        description="Manage finance associates and finance managers for your company."
+        actions={(
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+            <Select
+              className="w-full sm:w-52"
+              options={ROLE_FILTER_OPTIONS}
+              value={roleFilter}
+              onValueChange={setRoleFilter}
+              placeholder="Filter by role"
+            />
+            <Button
+              leftIcon={<Plus className="h-4 w-4" />}
+              onClick={() => setIsModalOpen(true)}
+            >
+              Onboard User
+            </Button>
+          </div>
+        )}
+      />
 
       {isLoading ? (
-        <div className="py-12 flex justify-center text-slate-400">Loading users...</div>
+        <PageSpinner />
       ) : (
         <UserList users={users} onToggleStatus={handleToggleStatus} />
       )}

@@ -6,6 +6,7 @@ import { LoginForm } from '../../features/auth/components/LoginForm';
 import { ForgotPasswordForm } from '../../features/auth/components/ForgotPasswordForm';
 import { ResetPasswordForm } from '../../features/auth/components/ResetPasswordForm';
 import { ProtectedRoute } from './ProtectedRoute';
+import { RoleHomeRedirect } from './RoleHomeRedirect';
 import { UserRole } from '../../features/auth/constants/userRole';
 import { PageLoader } from '../../components/ui/PageLoader';
 import { ErrorBoundary } from '../../components/error/ErrorBoundary';
@@ -128,8 +129,15 @@ export const AppRoutes: React.FC = () => (
             </ProtectedRoute>
           }
         >
-          <Route index element={<Navigate to="/dashboard" replace />} />
-          <Route path="dashboard" element={<DashboardPage />} />
+          <Route index element={<RoleHomeRedirect />} />
+          <Route
+            path="dashboard"
+            element={
+              <ProtectedRoute allowedRoles={[UserRole.FINANCE_ASSOCIATE, UserRole.FINANCE_MANAGER]}>
+                <DashboardPage />
+              </ProtectedRoute>
+            }
+          />
           <Route path="notifications" element={<NotificationsPage />} />
           <Route path="settings" element={<SettingsPage />} />
 

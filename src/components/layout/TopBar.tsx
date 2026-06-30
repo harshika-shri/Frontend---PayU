@@ -12,7 +12,9 @@ import {
   useRealtimeUpdates,
 } from '../../features/notifications/hooks/useNotifications';
 import { UserRole } from '../../features/auth/constants/userRole';
+import { getHomeRouteForRole } from '../../features/auth/utils/getHomeRoute';
 import { cn } from '../../utils/cn';
+import { BrandMark } from '../ui/BrandMark';
 
 // ─── Route meta (breadcrumbs / page titles) ──────────────────────────────────
 const routeMeta: Record<string, { title: string; breadcrumbs: { label: string; href?: string }[] }> = {
@@ -97,7 +99,7 @@ const routeMeta: Record<string, { title: string; breadcrumbs: { label: string; h
   },
   '/admin/users': {
     title: 'User Management',
-    breadcrumbs: [{ label: 'Admin' }, { label: 'User Management' }],
+    breadcrumbs: [{ label: 'User Management' }],
   },
   '/settings': { title: 'Settings', breadcrumbs: [{ label: 'Settings' }] },
 };
@@ -126,6 +128,14 @@ const LEFT_NAV: NavItemConfig[] = [
     label: 'Dashboard',
     href: '/dashboard',
     end: true,
+    roles: [UserRole.FINANCE_ASSOCIATE, UserRole.FINANCE_MANAGER],
+  },
+  {
+    id: 'admin-users',
+    label: 'User Management',
+    href: '/admin/users',
+    end: true,
+    roles: [UserRole.ADMIN],
   },
   {
     id: 'command-center',
@@ -323,6 +333,7 @@ export const TopBar: React.FC<TopBarProps> = ({ onChangePassword }) => {
   };
 
   const hasAnyRightNav = RIGHT_NAV.some(isVisible);
+  const homeRoute = getHomeRouteForRole(role);
 
   // Resolve current page meta for the breadcrumb strip
   const commandCenterInvoiceMatch = /^\/command-center\/invoice\/[^/]+$/.test(location.pathname);
@@ -386,15 +397,10 @@ export const TopBar: React.FC<TopBarProps> = ({ onChangePassword }) => {
       <div className="h-14 bg-[var(--color-sidebar)] flex items-center px-4 gap-x-1">
         {/* Logo */}
         <Link
-          to="/dashboard"
-          className="flex items-center gap-2 mr-3 flex-shrink-0 group"
+          to={homeRoute}
+          className="flex items-center mr-3 flex-shrink-0 group"
         >
-          <div className="flex h-7 w-7 items-center justify-center rounded bg-[var(--color-primary)] flex-shrink-0 group-hover:bg-[var(--color-primary-hover)] transition-colors">
-            <span className="text-xs font-bold text-white">P</span>
-          </div>
-          <span className="text-sm font-semibold text-white tracking-tight whitespace-nowrap">
-            PayU Finance
-          </span>
+          <BrandMark size="sm" variant="light" />
         </Link>
 
         {/* Divider */}

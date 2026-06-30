@@ -1,9 +1,10 @@
 import React from 'react';
 import { Mail } from 'lucide-react';
+import { PageHeader } from '../../../components/ui/PageHeader';
 import { useMailMonitoring } from '../hooks/useMailMonitoring';
-import { useProcessingInvoices } from '../hooks/useProcessingInvoices';
+import { useRecentMail } from '../hooks/useRecentMail';
 import { MonitoringControlPanel } from './MonitoringControlPanel';
-import { ProcessingInvoicesTable } from './ProcessingInvoicesTable';
+import { RecentMailTable } from './RecentMailTable';
 
 export const MailMonitoringView: React.FC = () => {
   const {
@@ -12,45 +13,52 @@ export const MailMonitoringView: React.FC = () => {
     isToggling,
     startMonitoring,
     stopMonitoring,
+    fetchStatus,
   } = useMailMonitoring();
 
   const {
-    invoices,
+    items,
     total,
-    isLoading: isInvoicesLoading,
-  } = useProcessingInvoices();
+    isLoading: isMailLoading,
+    fetchMail,
+  } = useRecentMail();
+
+  const handleStart = async () => {
+    await startMonitoring();
+    await fetchMail();
+  };
+
+  const handleStop = async () => {
+    await stopMonitoring();
+    await fetchStatus();
+  };
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
-          <Mail className="w-6 h-6 text-slate-500" />
-          Mail Monitoring
-        </h1>
-        <p className="mt-1 text-sm text-slate-500">
-          Control Gmail monitoring and review invoices currently being processed.
-        </p>
-      </div>
+      <PageHeader
+        title="Mail Monitoring"
+        description="Control Gmail monitoring and review recently processed mailbox activity."
+      />
 
       <MonitoringControlPanel
         status={status}
         isLoading={isStatusLoading}
         isToggling={isToggling}
-        onStart={startMonitoring}
-        onStop={stopMonitoring}
+        onStart={handleStart}
+        onStop={handleStop}
       />
 
       <div>
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-sm font-semibold text-slate-700 uppercase tracking-wide">
-            Invoices In Process
+          <h2 className="text-sm font-semibold text-[var(--color-foreground)] uppercase tracking-wide flex items-center gap-2">
+            <Mail className="h-4 w-4 text-[var(--color-muted-foreground)]" />
+            Recent Mail Activity
           </h2>
-          <span className="text-xs text-slate-500">{total} active</span>
+          <span className="text-xs text-[var(--color-muted-foreground)]">
+            {total} processed
+          </span>
         </div>
-        <ProcessingInvoicesTable
-          invoices={invoices}
-          isLoading={isInvoicesLoading}
-        />
+        <RecentMailTable items={items} isLoading={isMailLoading} />
       </div>
     </div>
   );

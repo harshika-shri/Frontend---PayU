@@ -4,8 +4,13 @@ import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Eye, EyeOff, LogIn } from 'lucide-react';
 import { useNavigate, Link } from 'react-router-dom';
+import Cookies from 'js-cookie';
+import { jwtDecode } from 'jwt-decode';
 import toast from 'react-hot-toast';
 import { useAuth } from '../hooks/useAuth';
+import { normalizeRole } from '../constants/userRole';
+import { getHomeRouteForRole } from '../utils/getHomeRoute';
+import type { DecodedToken } from '../types/auth.types';
 import { Button } from '../../../components/ui/Button';
 import { Input } from '../../../components/ui/Input';
 
@@ -32,6 +37,14 @@ export const LoginForm: React.FC = () => {
   const onSubmit = async (values: LoginFormValues) => {
     try {
       await login(values.username, values.password);
+      const token = Cookies.get('access_token');
+
+      if (token) {
+        const decoded = jwtDecode<DecodedToken>(token);
+        navigate(getHomeRouteForRole(normalizeRole(decoded.role)), { replace: true });
+        return;
+      }
+
       navigate('/dashboard', { replace: true });
     } catch {
       toast.error('Invalid credentials. Please try again.');
@@ -40,21 +53,15 @@ export const LoginForm: React.FC = () => {
 
   return (
     <div>
-      {/* Header */}
-      <div className="mb-8">
-        <div className="flex items-center gap-2 mb-6 lg:hidden">
-          <div className="flex h-7 w-7 items-center justify-center rounded bg-[var(--color-primary)]">
-            <span className="text-xs font-bold text-white">P</span>
-          </div>
-          <span className="text-sm font-semibold text-[var(--color-foreground)] tracking-tight">PayU Finance</span>
-        </div>
-        <h2 className="text-2xl font-semibold text-[var(--color-foreground)]">Sign in</h2>
-        <p className="mt-1.5 text-sm text-[var(--color-muted-foreground)]">
-          Enter your credentials to access the system
+      <div className="mb-7 text-center">
+        <h2 className="text-2xl font-semibold tracking-tight text-[var(--color-foreground)]">
+          Welcome back
+        </h2>
+        <p className="mt-2 text-sm text-[var(--color-muted-foreground)]">
+          Sign in to your account
         </p>
       </div>
 
-      {/* Form */}
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
         <Input
           label="Username"

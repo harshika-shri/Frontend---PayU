@@ -1,50 +1,53 @@
 import { useCallback, useEffect, useState } from 'react';
+import { DEFAULT_MONITORING_EMAIL } from '../constants/defaultEmail';
 import { mailMonitoringService } from '../services/mailMonitoringService';
-import type { InvoiceProcessingItem } from '../types/mailMonitoring.types';
+import type { RecentMailItem } from '../types/mailMonitoring.types';
 
-interface UseProcessingInvoicesOptions {
+interface UseRecentMailOptions {
+  mailbox?: string;
   pollIntervalMs?: number;
   enablePolling?: boolean;
 }
 
-export const useProcessingInvoices = ({
+export const useRecentMail = ({
+  mailbox = DEFAULT_MONITORING_EMAIL,
   pollIntervalMs = 30000,
   enablePolling = true,
-}: UseProcessingInvoicesOptions = {}) => {
-  const [invoices, setInvoices] = useState<InvoiceProcessingItem[]>([]);
+}: UseRecentMailOptions = {}) => {
+  const [items, setItems] = useState<RecentMailItem[]>([]);
   const [total, setTotal] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
 
-  const fetchInvoices = useCallback(async (showLoader = true) => {
+  const fetchMail = useCallback(async (showLoader = true) => {
     if (showLoader) setIsLoading(true);
     try {
-      const data = await mailMonitoringService.listProcessingInvoices();
-      setInvoices(data.items);
+      const data = await mailMonitoringService.listRecentMail(mailbox);
+      setItems(data.items);
       setTotal(data.total);
     } catch {
-      setInvoices([]);
+      setItems([]);
       setTotal(0);
     } finally {
       if (showLoader) setIsLoading(false);
     }
-  }, []);
+  }, [mailbox]);
 
   useEffect(() => {
-    fetchInvoices();
+    fetchMail();
 
     if (!enablePolling) return;
 
     const intervalId = window.setInterval(() => {
-      fetchInvoices(false);
+      fetchMail(false);
     }, pollIntervalMs);
 
     return () => window.clearInterval(intervalId);
-  }, [fetchInvoices, pollIntervalMs, enablePolling]);
+  }, [fetchMail, pollIntervalMs, enablePolling]);
 
   return {
-    invoices,
+    items,
     total,
     isLoading,
-    fetchInvoices,
+    fetchMail,
   };
 };

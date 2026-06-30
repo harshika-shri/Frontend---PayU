@@ -87,9 +87,11 @@ export const ResetPasswordForm: React.FC = () => {
 
   return (
     <div>
-      <div className="mb-8">
-        <h2 className="text-2xl font-semibold text-[var(--color-foreground)]">Set new password</h2>
-        <p className="mt-1.5 text-sm text-[var(--color-muted-foreground)]">
+      <div className="mb-7 text-center">
+        <h2 className="text-2xl font-semibold tracking-tight text-[var(--color-foreground)]">
+          Set new password
+        </h2>
+        <p className="mt-2 text-sm text-[var(--color-muted-foreground)]">
           Choose a strong password for your account.
         </p>
       </div>

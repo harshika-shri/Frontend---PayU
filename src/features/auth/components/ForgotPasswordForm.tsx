@@ -59,10 +59,12 @@ export const ForgotPasswordForm: React.FC = () => {
 
   return (
     <div>
-      <div className="mb-8">
-        <h2 className="text-2xl font-semibold text-[var(--color-foreground)]">Forgot password</h2>
-        <p className="mt-1.5 text-sm text-[var(--color-muted-foreground)]">
-          Enter your account email and we will send you a link to set a new password.
+      <div className="mb-7 text-center">
+        <h2 className="text-2xl font-semibold tracking-tight text-[var(--color-foreground)]">
+          Forgot password
+        </h2>
+        <p className="mt-2 text-sm text-[var(--color-muted-foreground)]">
+          Enter your account email and we will send you a reset link.
         </p>
       </div>
 

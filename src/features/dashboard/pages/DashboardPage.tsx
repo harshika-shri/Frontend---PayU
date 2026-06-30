@@ -24,18 +24,11 @@ export const DashboardPage: React.FC = () => {
     <div>
       <PageHeader
         title="Dashboard"
-        description="Welcome to PayU Finance."
+        description="Welcome back. Select an option from the navigation to get started."
       />
-      <div className="rounded-lg border border-[var(--color-border)] bg-white p-8 text-center max-w-md">
-        <p className="text-sm text-[var(--color-muted-foreground)]">
-          Select an option from the sidebar to get started.
-        </p>
+      <div className="max-w-md">
         {role === UserRole.ADMIN && (
-          <Button
-            className="mt-4"
-            size="sm"
-            onClick={() => navigate('/admin/users')}
-          >
+          <Button size="sm" onClick={() => navigate('/admin/users')}>
             User Management
           </Button>
         )}

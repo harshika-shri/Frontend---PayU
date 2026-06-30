@@ -2,6 +2,7 @@ import React from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../../features/auth/hooks/useAuth';
 import type { UserRole } from '../../features/auth/constants/userRole';
+import { getHomeRouteForRole } from '../../features/auth/utils/getHomeRoute';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -15,6 +16,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   allowedRoles,
 }) => {
   const { isAuthenticated, isLoading, role } = useAuth();
+  const homeRoute = getHomeRouteForRole(role);
 
   if (isLoading) {
     return (
@@ -29,11 +31,11 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   }
 
   if (allowedRoles && role && !allowedRoles.includes(role)) {
-    return <Navigate to="/dashboard" replace />;
+    return <Navigate to={homeRoute} replace />;
   }
 
   if (requiredRole && !allowedRoles && role !== requiredRole) {
-    return <Navigate to="/dashboard" replace />;
+    return <Navigate to={homeRoute} replace />;
   }
 
   return <>{children}</>;
