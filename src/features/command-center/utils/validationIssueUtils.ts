@@ -3,28 +3,56 @@ import type {
   ValidationIssueDetails,
 } from '../types/invoiceReview.types';
 
+export type IssueSeverity = 'critical' | 'high' | 'medium' | 'low';
+
 const RESOLVED_STATUSES = new Set(['resolved', 'waived', 'pass', 'passed']);
+const PASSED_STATUSES = new Set(['resolved', 'waived', 'pass', 'passed', 'ok']);
+
+export const isPassedIssue = (issue: ValidationIssueDetails): boolean =>
+  PASSED_STATUSES.has((issue.status ?? '').toLowerCase());
 
 export const isUnresolvedIssue = (issue: ValidationIssueDetails): boolean =>
   !RESOLVED_STATUSES.has((issue.status ?? '').toLowerCase());
 
-export const isCriticalIssue = (issue: ValidationIssueDetails): boolean => {
-  const status = (issue.status ?? '').toLowerCase();
-  const issueType = (issue.issue_type ?? '').toLowerCase();
-
-  if (status === 'fail' || status === 'failed' || status === 'error') return true;
-  if (status === 'open' || status === 'pending_review') return true;
-  if (['invalid', 'missing', 'mismatch', 'duplicate', 'ambiguous'].includes(issueType)) {
-    return true;
-  }
-
-  return false;
-};
+export const isCriticalIssue = (issue: ValidationIssueDetails): boolean =>
+  getIssueSeverity(issue) === 'critical';
 
 export const isWarningIssue = (issue: ValidationIssueDetails): boolean => {
+  const severity = getIssueSeverity(issue);
+  return severity === 'high' || severity === 'medium';
+};
+
+export const getIssueSeverity = (issue: ValidationIssueDetails): IssueSeverity => {
   const status = (issue.status ?? '').toLowerCase();
   const issueType = (issue.issue_type ?? '').toLowerCase();
-  return status === 'warning' || status === 'warn' || issueType === 'warning';
+
+  if (
+    ['invalid', 'missing', 'mismatch', 'duplicate', 'ambiguous'].includes(issueType)
+  ) {
+    return 'critical';
+  }
+
+  if (status === 'fail' || status === 'failed' || status === 'error') {
+    return 'critical';
+  }
+
+  if (status === 'open' || status === 'pending_review') {
+    return 'critical';
+  }
+
+  if (issueType === 'low_confidence') {
+    return 'high';
+  }
+
+  if (status === 'warning' || status === 'warn' || issueType === 'warning') {
+    return 'high';
+  }
+
+  if (status === 'resolved' || status === 'waived' || status === 'pass' || status === 'passed') {
+    return 'low';
+  }
+
+  return 'medium';
 };
 
 export const countUnresolvedIssues = (issues: ValidationIssueDetails[]): number =>

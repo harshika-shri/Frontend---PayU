@@ -1,20 +1,23 @@
 import React from 'react';
 import { cn } from '../../../../utils/cn';
-import { formatCurrency } from '../../../../utils/formatters';
+import { formatCurrency, formatDate } from '../../../../utils/formatters';
 import type {
-  InvoiceExtractionResponse,
   ConfidenceScoreDetails,
+  InvoiceExtractionResponse,
+  InvoiceHeaderResponse,
 } from '../../types/invoiceReview.types';
 
 interface ExtractionTabProps {
   extraction: InvoiceExtractionResponse;
+  header: InvoiceHeaderResponse;
 }
 
 const ReadField: React.FC<{
   label: string;
   value?: string | number | null;
   confidence?: ConfidenceScoreDetails;
-}> = ({ label, value, confidence }) => {
+  className?: string;
+}> = ({ label, value, confidence, className }) => {
   const tier =
     confidence == null
       ? null
@@ -25,7 +28,7 @@ const ReadField: React.FC<{
       : 'low';
 
   return (
-    <div className="space-y-1">
+    <div className={cn('space-y-1', className)}>
       <div className="flex items-center justify-between gap-2">
         <dt className="text-[10px] font-semibold uppercase tracking-widest text-[var(--color-muted-foreground)]">
           {label}
@@ -58,7 +61,7 @@ const ReadField: React.FC<{
       <dd
         className={cn(
           'text-sm rounded px-2 py-1 bg-[var(--color-muted)] text-[var(--color-foreground)]',
-          !value && 'text-[var(--color-muted-foreground)] italic',
+          !value && value !== 0 && 'text-[var(--color-muted-foreground)] italic',
           tier === 'low' && value && 'bg-[var(--color-destructive-muted)]',
         )}
       >
@@ -82,7 +85,10 @@ const Section: React.FC<{ title: string; children: React.ReactNode }> = ({
   </section>
 );
 
-export const ExtractionTab: React.FC<ExtractionTabProps> = ({ extraction }) => {
+export const ExtractionTab: React.FC<ExtractionTabProps> = ({
+  extraction,
+  header,
+}) => {
   const confMap: Record<string, ConfidenceScoreDetails> = {};
   extraction.confidence_scores.forEach((c) => {
     confMap[c.field_name] = c;
@@ -97,7 +103,63 @@ export const ExtractionTab: React.FC<ExtractionTabProps> = ({ extraction }) => {
         These fields are read-only. Use Extraction Review to edit extracted values.
       </p>
 
-      {/* Email source */}
+      <Section title="Invoice Header">
+        <ReadField
+          label="Invoice Number"
+          value={header.invoice_number}
+          confidence={confMap['invoice_number']}
+        />
+        <ReadField
+          label="Invoice Date"
+          value={formatDate(header.invoice_date)}
+          confidence={confMap['invoice_date']}
+        />
+        <ReadField
+          label="Due Date"
+          value={formatDate(header.due_date)}
+          confidence={confMap['due_date']}
+        />
+        <ReadField label="Payment Terms" value={header.payment_terms} />
+        <ReadField
+          label="Subtotal"
+          value={
+            header.subtotal_amount != null
+              ? formatCurrency(header.subtotal_amount, 'INR')
+              : null
+          }
+          confidence={confMap['subtotal_amount']}
+        />
+        <ReadField
+          label="Tax"
+          value={
+            header.tax_amount != null
+              ? formatCurrency(header.tax_amount, 'INR')
+              : null
+          }
+          confidence={confMap['tax_amount']}
+        />
+        <ReadField
+          label="Total"
+          value={
+            header.total_amount != null
+              ? formatCurrency(header.total_amount, 'INR')
+              : null
+          }
+          confidence={confMap['total_amount']}
+        />
+        {header.notes && (
+          <div className="col-span-2">
+            <ReadField label="Notes" value={header.notes} />
+          </div>
+        )}
+      </Section>
+
+      <Section title="Buyer Company">
+        <ReadField label="Company Name" value={header.company?.company_name} />
+        <ReadField label="GSTIN" value={header.company?.gstin} />
+        <ReadField label="Company Code" value={header.company?.company_code} />
+      </Section>
+
       {email && (
         <Section title="Email Source">
           <ReadField label="From" value={email.received_from} />
@@ -106,33 +168,66 @@ export const ExtractionTab: React.FC<ExtractionTabProps> = ({ extraction }) => {
         </Section>
       )}
 
-      {/* Vendor details */}
       {vendor && (
         <Section title="Vendor Details">
-          <ReadField label="Vendor Name" value={vendor.vendor_name} confidence={confMap['vendor_name']} />
-          <ReadField label="GSTIN" value={vendor.vendor_gstin} confidence={confMap['vendor_gstin']} />
-          <ReadField label="Email" value={vendor.vendor_email} confidence={confMap['vendor_email']} />
-          <ReadField label="Phone" value={vendor.vendor_phone} confidence={confMap['vendor_phone']} />
+          <ReadField
+            label="Vendor Name"
+            value={vendor.vendor_name}
+            confidence={confMap['vendor_name']}
+          />
+          <ReadField
+            label="GSTIN"
+            value={vendor.vendor_gstin}
+            confidence={confMap['vendor_gstin']}
+          />
+          <ReadField
+            label="Email"
+            value={vendor.vendor_email}
+            confidence={confMap['vendor_email']}
+          />
+          <ReadField
+            label="Phone"
+            value={vendor.vendor_phone}
+            confidence={confMap['vendor_phone']}
+          />
           <div className="col-span-2">
-            <ReadField label="Address" value={vendor.vendor_address} confidence={confMap['vendor_address']} />
+            <ReadField
+              label="Address"
+              value={vendor.vendor_address}
+              confidence={confMap['vendor_address']}
+            />
           </div>
         </Section>
       )}
 
-      {/* Bank details */}
       {vendor &&
         (vendor.bank_account_number ||
           vendor.bank_name ||
           vendor.ifsc_code) && (
           <Section title="Bank Details">
-            <ReadField label="Bank Name" value={vendor.bank_name} confidence={confMap['bank_name']} />
-            <ReadField label="Account Number" value={vendor.bank_account_number} confidence={confMap['bank_account_number']} />
-            <ReadField label="IFSC Code" value={vendor.ifsc_code} confidence={confMap['ifsc_code']} />
-            <ReadField label="Account Holder" value={vendor.account_holder_name} confidence={confMap['account_holder_name']} />
+            <ReadField
+              label="Bank Name"
+              value={vendor.bank_name}
+              confidence={confMap['bank_name']}
+            />
+            <ReadField
+              label="Account Number"
+              value={vendor.bank_account_number}
+              confidence={confMap['bank_account_number']}
+            />
+            <ReadField
+              label="IFSC Code"
+              value={vendor.ifsc_code}
+              confidence={confMap['ifsc_code']}
+            />
+            <ReadField
+              label="Account Holder"
+              value={vendor.account_holder_name}
+              confidence={confMap['account_holder_name']}
+            />
           </Section>
         )}
 
-      {/* Line items */}
       {extraction.line_items.length > 0 && (
         <section className="border border-[var(--color-border)] rounded-lg overflow-hidden">
           <div className="px-4 py-2.5 bg-[var(--color-muted)] border-b border-[var(--color-border)]">
@@ -144,14 +239,16 @@ export const ExtractionTab: React.FC<ExtractionTabProps> = ({ extraction }) => {
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-slate-50 border-b border-[var(--color-border)]">
-                  {['#', 'Code', 'Description', 'UOM', 'Qty', 'Unit Price', 'Total'].map((h) => (
-                    <th
-                      key={h}
-                      className="px-3 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wide text-[var(--color-muted-foreground)] whitespace-nowrap border-r border-[var(--color-border)] last:border-r-0"
-                    >
-                      {h}
-                    </th>
-                  ))}
+                  {['#', 'Code', 'Description', 'UOM', 'Qty', 'Unit Price', 'Total'].map(
+                    (h) => (
+                      <th
+                        key={h}
+                        className="px-3 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wide text-[var(--color-muted-foreground)] whitespace-nowrap border-r border-[var(--color-border)] last:border-r-0"
+                      >
+                        {h}
+                      </th>
+                    ),
+                  )}
                 </tr>
               </thead>
               <tbody>
@@ -163,11 +260,15 @@ export const ExtractionTab: React.FC<ExtractionTabProps> = ({ extraction }) => {
                     <td className="px-3 py-2 text-[var(--color-muted-foreground)] border-r border-[var(--color-border)]">
                       {item.line_number}
                     </td>
-                    <td className="px-3 py-2 border-r border-[var(--color-border)]">{item.item_code || '—'}</td>
+                    <td className="px-3 py-2 border-r border-[var(--color-border)]">
+                      {item.item_code || '—'}
+                    </td>
                     <td className="px-3 py-2 max-w-[200px] truncate border-r border-[var(--color-border)]">
                       {item.item_description || '—'}
                     </td>
-                    <td className="px-3 py-2 border-r border-[var(--color-border)]">{item.uom || '—'}</td>
+                    <td className="px-3 py-2 border-r border-[var(--color-border)]">
+                      {item.uom || '—'}
+                    </td>
                     <td className="px-3 py-2 text-right border-r border-[var(--color-border)]">
                       {item.quantity_billed}
                     </td>
@@ -184,6 +285,11 @@ export const ExtractionTab: React.FC<ExtractionTabProps> = ({ extraction }) => {
           </div>
         </section>
       )}
+
+      <Section title="Metadata">
+        <ReadField label="Received via" value={header.received_email} />
+        <ReadField label="Vendor Code" value={header.vendor?.vendor_code} />
+      </Section>
     </div>
   );
 };

@@ -13,11 +13,17 @@ import {
   UserCheck,
   Wrench,
   HelpCircle,
+  RotateCcw,
+  ShieldCheck,
 } from 'lucide-react';
 import { Badge } from '../../../../components/ui/Badge';
 import { cn } from '../../../../utils/cn';
 import { formatCurrency } from '../../../../utils/formatters';
 import { isUnresolvedIssue } from '../../utils/validationIssueUtils';
+import {
+  type CandidatePOCard,
+  parseValidationIssueForMapping,
+} from '../../utils/lineMappingPresentation';
 import type {
   InvoiceValidationResponse,
   LineAllocationCandidateGroupDetails,
@@ -38,6 +44,7 @@ const qtyClose = (a: number, b: number) => Math.abs(a - b) < 0.001;
 interface MappingIssue {
   key: string;
   type: 'overallocation' | 'qty_mismatch' | 'candidate_type' | 'validation';
+  title: string;
   message: string;
   severity: 'error' | 'warning';
 }
@@ -47,10 +54,12 @@ const getMappingIssues = (item: LineAllocationCandidateItemDetails): MappingIssu
   const type = item.candidate_type.toLowerCase();
 
   if (ISSUE_CANDIDATE_TYPES.has(type)) {
+    const label = type.replace(/_/g, ' ');
     issues.push({
       key: `ctype-${item.id}`,
       type: 'candidate_type',
-      message: `Match status is "${type.replace(/_/g, ' ')}"`,
+      title: `Match status: ${label}`,
+      message: `This line was matched with status "${label}". Review whether the PO line is correct.`,
       severity: type === 'ambiguous' || type === 'missing' ? 'error' : 'warning',
     });
   }
@@ -61,7 +70,8 @@ const getMappingIssues = (item: LineAllocationCandidateItemDetails): MappingIssu
     issues.push({
       key: `overalloc-${item.id}`,
       type: 'overallocation',
-      message: `Allocated qty (${item.allocated_quantity}) exceeds PO remaining (${poRemaining.toFixed(2)})`,
+      title: 'Quantity over-allocation',
+      message: `Allocated quantity (${item.allocated_quantity}) exceeds PO remaining (${poRemaining.toFixed(2)}).`,
       severity: 'error',
     });
   }
@@ -70,7 +80,8 @@ const getMappingIssues = (item: LineAllocationCandidateItemDetails): MappingIssu
     issues.push({
       key: `qtymm-${item.id}`,
       type: 'qty_mismatch',
-      message: `Invoice billed ${item.invoice_line_item.quantity_billed} but ${item.allocated_quantity} allocated to PO`,
+      title: 'Quantity discrepancy',
+      message: `Invoice bills ${item.invoice_line_item.quantity_billed} units, but only ${item.allocated_quantity} were allocated to this PO line.`,
       severity: 'warning',
     });
   }
@@ -108,12 +119,9 @@ const getRelatedValidationIssues = (
   });
 };
 
-// ── Action guidance — maps issue types to clear next steps ───────────────────
-
 interface ActionGuide {
   Icon: React.ElementType;
   iconColor: string;
-  title: string;
   guidance: string;
 }
 
@@ -123,7 +131,6 @@ const getActionGuide = (issue: MappingIssue): ActionGuide => {
       return {
         Icon: TrendingUp,
         iconColor: 'text-red-600',
-        title: 'Quantity Over-Allocation',
         guidance:
           'The allocated quantity exceeds what remains on the PO. Escalate to Finance Manager to request a PO amendment, or split the invoice into a partial payment.',
       };
@@ -131,90 +138,387 @@ const getActionGuide = (issue: MappingIssue): ActionGuide => {
       return {
         Icon: PhoneCall,
         iconColor: 'text-amber-600',
-        title: 'Quantity Discrepancy',
         guidance:
           'The invoiced quantity differs from the allocated amount. Contact the vendor to verify the correct quantity or request a revised invoice.',
       };
     case 'candidate_type':
-      if (issue.message.includes('ambiguous')) {
+      if (issue.title.includes('ambiguous')) {
         return {
           Icon: HelpCircle,
           iconColor: 'text-amber-600',
-          title: 'Ambiguous PO Match',
           guidance:
-            'Multiple PO lines match this invoice item. Manual selection is required — review the PO Mapping tab and confirm the correct allocation before approving.',
+            'Multiple PO lines match this invoice item. Review the PO Mapping tab and confirm the correct allocation before approving.',
         };
       }
-      if (issue.message.includes('missing')) {
+      if (issue.title.includes('missing')) {
         return {
           Icon: Wrench,
           iconColor: 'text-red-600',
-          title: 'No PO Line Found',
           guidance:
-            'No matching PO line was found for this invoice item. Raise a new PO with the procurement team, or reject this line item.',
+            'No matching PO line was found for this invoice item. Raise a new PO with procurement, or reject this line item.',
         };
       }
-      if (issue.message.includes('mismatch')) {
+      if (issue.title.includes('mismatch')) {
         return {
           Icon: UserCheck,
           iconColor: 'text-red-600',
-          title: 'Item Code Mismatch',
           guidance:
-            'The invoice item code does not match the PO item code. Verify with the vendor that the correct item is being billed, and cross-check the PO before approving.',
+            'The invoice item code does not match the PO item code. Verify with the vendor and cross-check the PO before approving.',
         };
       }
       return {
         Icon: AlertTriangle,
         iconColor: 'text-amber-600',
-        title: 'Match Issue',
         guidance: 'Review this line mapping carefully before approving the invoice.',
-      };
-    case 'validation':
-      return {
-        Icon: XCircle,
-        iconColor: 'text-red-600',
-        title: 'Validation Failure',
-        guidance:
-          'This line has a validation issue flagged by the system. Review the Validation tab for full details and resolve before approving.',
       };
     default:
       return {
         Icon: Info,
         iconColor: 'text-slate-500',
-        title: 'Review Required',
         guidance: 'This item needs manual review.',
       };
   }
 };
 
-// ── Mapping Row — table-row style with expandable issue details ───────────────
+// ── Structured sub-components ─────────────────────────────────────────────────
+
+const QtyComparisonTable: React.FC<{
+  invoiceQty: number;
+  allocatedQty: number;
+  poOrdered: number;
+  poConsumed: number;
+}> = ({ invoiceQty, allocatedQty, poOrdered, poConsumed }) => {
+  const poRemaining = poOrdered - poConsumed;
+
+  const cells = [
+    { label: 'Invoice billed', value: invoiceQty, highlight: !qtyClose(invoiceQty, allocatedQty) },
+    { label: 'Allocated to PO', value: allocatedQty, highlight: !qtyClose(invoiceQty, allocatedQty) },
+    { label: 'PO ordered', value: poOrdered, highlight: false },
+    { label: 'PO consumed', value: poConsumed, highlight: false },
+    {
+      label: 'PO remaining',
+      value: poRemaining,
+      highlight: allocatedQty > poRemaining + 0.001,
+    },
+  ];
+
+  return (
+    <div className="rounded-md border border-[var(--color-border)] overflow-hidden">
+      <div className="grid grid-cols-2 sm:grid-cols-5 divide-x divide-[var(--color-border)] bg-[var(--color-muted)]/30">
+        {cells.map((cell) => (
+          <div key={cell.label} className="px-3 py-2 text-center">
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-[var(--color-muted-foreground)]">
+              {cell.label}
+            </p>
+            <p
+              className={cn(
+                'text-sm font-bold mt-0.5 tabular-nums',
+                cell.highlight ? 'text-amber-700' : 'text-[var(--color-foreground)]',
+              )}
+            >
+              {typeof cell.value === 'number' ? cell.value.toFixed(2).replace(/\.00$/, '') : cell.value}
+            </p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+const CandidatePOCards: React.FC<{ candidates: CandidatePOCard[] }> = ({ candidates }) => {
+  if (candidates.length === 0) return null;
+
+  return (
+    <div className="space-y-2">
+      <p className="text-[10px] font-semibold uppercase tracking-wide text-[var(--color-muted-foreground)]">
+        Candidate purchase orders
+      </p>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
+        {candidates.map((po) => (
+          <div
+            key={po.poNumber}
+            className="rounded-md border border-[var(--color-border)] bg-white overflow-hidden"
+          >
+            <div className="px-3 py-2 bg-[var(--color-muted)]/40 border-b border-[var(--color-border)] flex items-center justify-between gap-2 flex-wrap">
+              <span className="text-sm font-semibold text-[var(--color-foreground)]">
+                {po.poNumber}
+              </span>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                {po.status && (
+                  <Badge variant="outline" className="text-[10px]">
+                    {po.status}
+                  </Badge>
+                )}
+                {po.date && (
+                  <span className="text-[10px] text-[var(--color-muted-foreground)]">
+                    {po.date}
+                  </span>
+                )}
+              </div>
+            </div>
+            {po.lines.length > 0 ? (
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="border-b border-[var(--color-border)] bg-slate-50">
+                    {['Item', 'HSN/SAC', 'Ordered', 'Unit price', 'Available'].map((h) => (
+                      <th
+                        key={h}
+                        className="px-2 py-1.5 text-left text-[10px] font-semibold uppercase tracking-wide text-[var(--color-muted-foreground)]"
+                      >
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {po.lines.map((line, index) => (
+                    <tr
+                      key={`${po.poNumber}-${index}`}
+                      className="border-b border-[var(--color-border)] last:border-0"
+                    >
+                      <td className="px-2 py-1.5 font-medium text-[var(--color-foreground)]">
+                        {line.description}
+                      </td>
+                      <td className="px-2 py-1.5 text-[var(--color-muted-foreground)]">
+                        {line.hsnSac || '—'}
+                      </td>
+                      <td className="px-2 py-1.5 tabular-nums">{line.ordered || '—'}</td>
+                      <td className="px-2 py-1.5 tabular-nums">{line.unitPrice || '—'}</td>
+                      <td className="px-2 py-1.5 tabular-nums font-semibold">
+                        {line.available || '—'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <p className="px-3 py-2 text-xs text-[var(--color-muted-foreground)] italic">
+                No line items listed
+              </p>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+const ValidSolutionsList: React.FC<{ solutions: string[][] }> = ({ solutions }) => {
+  if (solutions.length === 0) return null;
+
+  return (
+    <div className="space-y-1.5">
+      <p className="text-[10px] font-semibold uppercase tracking-wide text-[var(--color-muted-foreground)]">
+        Valid PO combinations
+      </p>
+      <ol className="space-y-1">
+        {solutions.map((solution, index) => (
+          <li
+            key={index}
+            className="flex items-center gap-2 text-sm text-[var(--color-foreground)]"
+          >
+            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[var(--color-primary-muted)] text-[10px] font-bold text-[var(--color-primary)]">
+              {index + 1}
+            </span>
+            {solution.join(', ')}
+          </li>
+        ))}
+      </ol>
+    </div>
+  );
+};
+
+const MappingIssueDetail: React.FC<{
+  issue: MappingIssue;
+  item: LineAllocationCandidateItemDetails;
+}> = ({ issue, item }) => {
+  const guide = getActionGuide(issue);
+  const GuideIcon = guide.Icon;
+  const showQtyTable =
+    issue.type === 'qty_mismatch' || issue.type === 'overallocation';
+
+  return (
+    <div
+      className={cn(
+        'rounded-lg border p-4 space-y-3',
+        issue.severity === 'error'
+          ? 'border-red-200 bg-red-50/20'
+          : 'border-amber-200 bg-amber-50/20',
+      )}
+    >
+      <div className="flex items-start gap-2">
+        {issue.severity === 'error' ? (
+          <XCircle className="h-4 w-4 text-red-500 flex-shrink-0 mt-0.5" />
+        ) : (
+          <AlertTriangle className="h-4 w-4 text-amber-500 flex-shrink-0 mt-0.5" />
+        )}
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-semibold text-[var(--color-foreground)]">{issue.title}</p>
+          <p className="text-sm text-[var(--color-foreground)] leading-relaxed mt-1">
+            {issue.message}
+          </p>
+        </div>
+      </div>
+
+      {showQtyTable && (
+        <QtyComparisonTable
+          invoiceQty={item.invoice_line_item.quantity_billed}
+          allocatedQty={item.allocated_quantity}
+          poOrdered={item.po_line_item.quantity_ordered}
+          poConsumed={item.po_line_item.consumed_quantity}
+        />
+      )}
+
+      <div className="rounded-md border border-blue-100 bg-blue-50/60 px-3 py-2.5">
+        <div className="flex items-center gap-1.5 mb-1">
+          <GuideIcon className={cn('h-3.5 w-3.5', guide.iconColor)} />
+          <p className="text-[10px] font-bold uppercase tracking-wide text-[var(--color-foreground)]">
+            Recommended action
+          </p>
+        </div>
+        <p className="text-sm text-[var(--color-foreground)] leading-relaxed">
+          {guide.guidance}
+        </p>
+      </div>
+    </div>
+  );
+};
+
+const recoveryStatusConfig = {
+  resolved: {
+    label: 'Resolved by system',
+    icon: CheckCircle2,
+    className: 'border-green-200 bg-green-50 text-green-900',
+    iconClass: 'text-[var(--color-success)]',
+  },
+  partial: {
+    label: 'Recoverable — needs confirmation',
+    icon: RotateCcw,
+    className: 'border-sky-200 bg-sky-50 text-sky-900',
+    iconClass: 'text-[var(--color-info)]',
+  },
+  waived: {
+    label: 'Waived to continue processing',
+    icon: ShieldCheck,
+    className: 'border-slate-200 bg-slate-50 text-slate-800',
+    iconClass: 'text-slate-600',
+  },
+  not_recoverable: {
+    label: 'Not recoverable — manual review required',
+    icon: XCircle,
+    className: 'border-red-200 bg-red-50 text-red-900',
+    iconClass: 'text-[var(--color-destructive)]',
+  },
+};
+
+const ValidationIssueDetail: React.FC<{
+  issue: ValidationIssueDetails;
+}> = ({ issue }) => {
+  const parsed = parseValidationIssueForMapping(issue);
+  const recovery = recoveryStatusConfig[parsed.recoveryStatus];
+  const RecoveryIcon = recovery.icon;
+
+  return (
+    <div className="rounded-lg border border-red-200 bg-red-50/20 p-4 space-y-3">
+      <div className="flex items-start gap-2">
+        <XCircle className="h-4 w-4 text-red-500 flex-shrink-0 mt-0.5" />
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-semibold text-[var(--color-foreground)]">
+            {parsed.title}
+          </p>
+          <p className="text-sm text-[var(--color-foreground)] leading-relaxed mt-1">
+            {parsed.summary}
+          </p>
+        </div>
+      </div>
+
+      <div
+        className={cn(
+          'rounded-md border px-3 py-2.5 flex items-start gap-2.5',
+          recovery.className,
+        )}
+      >
+        <RecoveryIcon className={cn('h-4 w-4 flex-shrink-0 mt-0.5', recovery.iconClass)} />
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wide">{recovery.label}</p>
+          <p className="text-sm mt-1 leading-relaxed">{parsed.recoveryReason}</p>
+        </div>
+      </div>
+
+      <CandidatePOCards candidates={parsed.candidatePos} />
+      <ValidSolutionsList solutions={parsed.validSolutions} />
+
+      {parsed.allocationPlans.length > 0 && (
+        <div className="space-y-1.5">
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-[var(--color-muted-foreground)]">
+            Valid allocation plans
+          </p>
+          <ol className="space-y-1 text-sm text-[var(--color-foreground)]">
+            {parsed.allocationPlans.map((plan, index) => (
+              <li key={index} className="leading-relaxed">
+                <span className="font-semibold">{index + 1}.</span> {plan}
+              </li>
+            ))}
+          </ol>
+        </div>
+      )}
+
+      {parsed.technicalDetails.length > 0 && (
+        <div>
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-[var(--color-muted-foreground)] mb-2">
+            Supporting details
+          </p>
+          <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2 text-sm">
+            {parsed.technicalDetails
+              .filter(
+                (entry) =>
+                  !['Candidate Pos', 'Valid Solutions'].includes(entry.label),
+              )
+              .map((entry) => (
+                <div key={`${issue.id}-${entry.label}`}>
+                  <dt className="text-xs text-[var(--color-muted-foreground)]">
+                    {entry.label}
+                  </dt>
+                  <dd className="font-medium text-[var(--color-foreground)] break-words">
+                    {entry.value}
+                  </dd>
+                </div>
+              ))}
+          </dl>
+        </div>
+      )}
+
+      <div className="rounded-md border border-blue-100 bg-blue-50/60 px-3 py-2.5">
+        <p className="text-[10px] font-bold uppercase tracking-wide text-[var(--color-foreground)] mb-1">
+          Recommended action
+        </p>
+        <p className="text-sm text-[var(--color-foreground)] leading-relaxed">
+          {parsed.recommendedAction}
+        </p>
+      </div>
+    </div>
+  );
+};
+
+// ── Mapping Row ───────────────────────────────────────────────────────────────
 
 const MappingRow: React.FC<{
   item: LineAllocationCandidateItemDetails;
   validation?: InvoiceValidationResponse;
   index: number;
 }> = ({ item, validation, index }) => {
-  const [expanded, setExpanded] = useState(false);
-
   const mappingIssues = getMappingIssues(item);
   const validationIssues = getRelatedValidationIssues(item, validation);
   const hasIssues = mappingIssues.length > 0 || validationIssues.length > 0;
   const hasCritical =
     mappingIssues.some((i) => i.severity === 'error') || validationIssues.length > 0;
 
+  const [expanded, setExpanded] = useState(hasIssues);
+
   const poRemaining = item.po_line_item.quantity_ordered - item.po_line_item.consumed_quantity;
   const qtyOk = qtyClose(item.allocated_quantity, item.invoice_line_item.quantity_billed);
   const poOk = item.allocated_quantity <= poRemaining + 0.001;
-
-  const allValidationIssues: MappingIssue[] = [
-    ...mappingIssues,
-    ...validationIssues.map((vi) => ({
-      key: vi.id,
-      type: 'validation' as const,
-      message: vi.description,
-      severity: 'error' as const,
-    })),
-  ];
+  const issueCount = mappingIssues.length + validationIssues.length;
 
   return (
     <div
@@ -227,22 +531,24 @@ const MappingRow: React.FC<{
           : 'border-[var(--color-border)]',
       )}
     >
-      {/* Main row */}
-      <div
+      <button
+        type="button"
+        onClick={() => hasIssues && setExpanded((value) => !value)}
+        disabled={!hasIssues}
         className={cn(
-          'grid gap-0 divide-x divide-[var(--color-border)]',
+          'w-full grid gap-0 divide-x divide-[var(--color-border)] text-left',
           'grid-cols-[32px_1fr_88px_1fr_120px]',
           hasCritical ? 'bg-red-50/30' : hasIssues ? 'bg-amber-50/30' : 'bg-white',
+          hasIssues && 'hover:bg-[var(--color-muted)]/10 cursor-pointer',
+          !hasIssues && 'cursor-default',
         )}
       >
-        {/* Index */}
         <div className="flex items-center justify-center">
           <span className="text-[11px] font-bold text-[var(--color-muted-foreground)]">
             {index + 1}
           </span>
         </div>
 
-        {/* Invoice line */}
         <div className="p-3 min-w-0">
           <p className="text-[10px] font-semibold uppercase tracking-widest text-blue-600 mb-1">
             Invoice Line
@@ -279,7 +585,6 @@ const MappingRow: React.FC<{
           </div>
         </div>
 
-        {/* Allocation center */}
         <div className="flex flex-col items-center justify-center gap-1 p-2 bg-[var(--color-muted)]/40">
           <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--color-primary-muted)]">
             <ArrowRight className="h-3.5 w-3.5 text-[var(--color-primary)]" />
@@ -295,7 +600,6 @@ const MappingRow: React.FC<{
           </p>
         </div>
 
-        {/* PO line */}
         <div className="p-3 min-w-0">
           <p
             className={cn(
@@ -315,10 +619,16 @@ const MappingRow: React.FC<{
           )}
           <div className="mt-2 flex flex-wrap items-center gap-3 text-[11px] text-[var(--color-muted-foreground)]">
             <span>
-              Ordered: <span className="font-semibold text-[var(--color-foreground)]">{item.po_line_item.quantity_ordered}</span>
+              Ordered:{' '}
+              <span className="font-semibold text-[var(--color-foreground)]">
+                {item.po_line_item.quantity_ordered}
+              </span>
             </span>
             <span>
-              Consumed: <span className="font-semibold text-[var(--color-foreground)]">{item.po_line_item.consumed_quantity}</span>
+              Consumed:{' '}
+              <span className="font-semibold text-[var(--color-foreground)]">
+                {item.po_line_item.consumed_quantity}
+              </span>
             </span>
             <span>
               Remaining:{' '}
@@ -334,14 +644,13 @@ const MappingRow: React.FC<{
           </div>
         </div>
 
-        {/* Status + expand */}
         <div className="flex flex-col items-center justify-center gap-2 p-2">
           {hasIssues ? (
             hasCritical ? (
               <div className="flex flex-col items-center gap-1">
                 <XCircle className="h-5 w-5 text-red-500" />
                 <span className="text-[10px] font-semibold text-red-700 text-center">
-                  {allValidationIssues.length} Issue{allValidationIssues.length > 1 ? 's' : ''}
+                  {issueCount} issue{issueCount > 1 ? 's' : ''}
                 </span>
               </div>
             ) : (
@@ -360,69 +669,25 @@ const MappingRow: React.FC<{
           )}
 
           {hasIssues && (
-            <button
-              onClick={() => setExpanded((e) => !e)}
-              className="flex items-center gap-0.5 text-[10px] font-medium text-[var(--color-primary)] hover:underline"
-            >
-              Details
+            <span className="text-[var(--color-muted-foreground)]">
               {expanded ? (
-                <ChevronDown className="h-3 w-3" />
+                <ChevronDown className="h-4 w-4" />
               ) : (
-                <ChevronRight className="h-3 w-3" />
+                <ChevronRight className="h-4 w-4" />
               )}
-            </button>
+            </span>
           )}
         </div>
-      </div>
+      </button>
 
-      {/* Expanded issue details + action guides */}
       {hasIssues && expanded && (
-        <div className="border-t border-[var(--color-border)] bg-white divide-y divide-[var(--color-border)]">
-          {allValidationIssues.map((issue) => {
-            const guide = getActionGuide(issue);
-            return (
-              <div key={issue.key} className="p-4 flex gap-4">
-                {/* Issue type + message */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    {issue.severity === 'error' ? (
-                      <XCircle className="h-3.5 w-3.5 text-red-500 flex-shrink-0" />
-                    ) : (
-                      <AlertTriangle className="h-3.5 w-3.5 text-amber-500 flex-shrink-0" />
-                    )}
-                    <p
-                      className={cn(
-                        'text-xs font-semibold',
-                        issue.severity === 'error' ? 'text-red-900' : 'text-amber-900',
-                      )}
-                    >
-                      {issue.message}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Action guide */}
-                <div
-                  className={cn(
-                    'flex-1 min-w-0 rounded-lg border p-3',
-                    issue.severity === 'error'
-                      ? 'border-blue-100 bg-blue-50/60'
-                      : 'border-amber-100 bg-amber-50/60',
-                  )}
-                >
-                  <div className="flex items-center gap-1.5 mb-1.5">
-                    <guide.Icon className={cn('h-3.5 w-3.5 flex-shrink-0', guide.iconColor)} />
-                    <p className="text-[10px] font-bold uppercase tracking-wide text-[var(--color-foreground)]">
-                      Recommended Action
-                    </p>
-                  </div>
-                  <p className="text-xs text-[var(--color-foreground)] leading-relaxed">
-                    {guide.guidance}
-                  </p>
-                </div>
-              </div>
-            );
-          })}
+        <div className="border-t border-[var(--color-border)] bg-white p-4 space-y-3">
+          {mappingIssues.map((issue) => (
+            <MappingIssueDetail key={issue.key} issue={issue} item={item} />
+          ))}
+          {validationIssues.map((issue) => (
+            <ValidationIssueDetail key={issue.id} issue={issue} />
+          ))}
         </div>
       )}
     </div>
@@ -451,7 +716,6 @@ const GroupSection: React.FC<{
         group.is_selected ? 'border-[var(--color-primary)]' : 'border-[var(--color-border)]',
       )}
     >
-      {/* Group header */}
       <div
         className={cn(
           'flex items-center justify-between px-4 py-3 border-b flex-wrap gap-2',
@@ -476,9 +740,7 @@ const GroupSection: React.FC<{
             </Badge>
           )}
           {cleanCount > 0 && (
-            <Badge variant="success">
-              {cleanCount} clean
-            </Badge>
+            <Badge variant="success">{cleanCount} clean</Badge>
           )}
         </div>
         {group.confidence_score != null && (
@@ -491,7 +753,6 @@ const GroupSection: React.FC<{
         )}
       </div>
 
-      {/* Column headers */}
       {group.items.length > 0 && (
         <div className="grid grid-cols-[32px_1fr_88px_1fr_120px] divide-x divide-[var(--color-border)] border-b border-[var(--color-border)] bg-[var(--color-muted)]/50">
           <div />
@@ -510,8 +771,7 @@ const GroupSection: React.FC<{
         </div>
       )}
 
-      {/* Rows */}
-      <div className="bg-white divide-y divide-[var(--color-border)]">
+      <div className="bg-white divide-y divide-[var(--color-border)] p-2 space-y-2">
         {group.items.length === 0 ? (
           <p className="text-sm text-[var(--color-muted-foreground)] text-center py-8">
             No line mappings in this group.
@@ -579,16 +839,18 @@ export const LineAllocationTab: React.FC<LineAllocationTabProps> = ({
     validation?.issues.filter(
       (issue) =>
         isUnresolvedIssue(issue) &&
-        ['line_items', 'line_item', 'po'].includes((issue.check_stage ?? '').toLowerCase()),
+        ['line_items', 'line_item', 'po', 'line_item_validation', 'po_resolution'].includes(
+          (issue.check_stage ?? '').toLowerCase(),
+        ),
     ) ?? [];
 
-  const hasCriticalIssues = itemsWithIssues.some((item) =>
-    getMappingIssues(item).some((i) => i.severity === 'error'),
-  ) || lineItemValidationIssues.length > 0;
+  const hasCriticalIssues =
+    itemsWithIssues.some((item) =>
+      getMappingIssues(item).some((i) => i.severity === 'error'),
+    ) || lineItemValidationIssues.length > 0;
 
   return (
     <div className="space-y-5">
-      {/* ── Health banner ── */}
       <div
         className={cn(
           'rounded-lg border p-4',
@@ -646,7 +908,6 @@ export const LineAllocationTab: React.FC<LineAllocationTabProps> = ({
           </span>
         </div>
 
-        {/* Health progress bar */}
         <div className="h-2 rounded-full bg-white/60 border border-white/80 overflow-hidden">
           <div
             className={cn(
@@ -657,7 +918,6 @@ export const LineAllocationTab: React.FC<LineAllocationTabProps> = ({
           />
         </div>
 
-        {/* Quick stats */}
         <div className="flex items-center gap-4 mt-3 flex-wrap">
           <div className="flex items-center gap-1.5 text-[11px]">
             <CheckCircle2 className="h-3.5 w-3.5 text-green-600" />
@@ -679,7 +939,6 @@ export const LineAllocationTab: React.FC<LineAllocationTabProps> = ({
         </div>
       </div>
 
-      {/* ── Global validation issues (unmatched to a specific line) ── */}
       {lineItemValidationIssues.length > 0 && itemsWithIssues.length === 0 && (
         <div className="rounded-lg border border-red-200 overflow-hidden">
           <div className="px-4 py-2.5 bg-red-50 border-b border-red-200 flex items-center gap-2">
@@ -690,48 +949,24 @@ export const LineAllocationTab: React.FC<LineAllocationTabProps> = ({
           </div>
           <div className="p-4 space-y-3 bg-white">
             {lineItemValidationIssues.map((issue) => (
-              <div key={issue.id} className="flex gap-3">
-                <XCircle className="h-4 w-4 text-[var(--color-destructive)] flex-shrink-0 mt-0.5" />
-                <div className="flex-1">
-                  <p className="text-sm font-semibold text-[var(--color-foreground)]">
-                    {issue.check_name}
-                  </p>
-                  <p className="text-xs text-[var(--color-muted-foreground)] mt-0.5">
-                    {issue.description}
-                  </p>
-                </div>
-                <div className="flex-1 rounded-lg border border-blue-100 bg-blue-50/60 p-3">
-                  <p className="text-[10px] font-bold uppercase tracking-wide text-[var(--color-foreground)] mb-1">
-                    Recommended Action
-                  </p>
-                  <p className="text-xs text-[var(--color-foreground)] leading-relaxed">
-                    Review the Validation tab for full details. Resolve all open issues before
-                    approving this invoice.
-                  </p>
-                </div>
-              </div>
+              <ValidationIssueDetail key={issue.id} issue={issue} />
             ))}
           </div>
         </div>
       )}
 
-      {/* ── How to read this section (shown only when issues exist) ── */}
       {itemsWithIssues.length > 0 && (
         <div className="flex items-start gap-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-muted)]/40 px-4 py-3">
           <Info className="h-4 w-4 text-[var(--color-primary)] flex-shrink-0 mt-0.5" />
           <p className="text-xs text-[var(--color-muted-foreground)] leading-relaxed">
-            Rows with issues are highlighted. Click{' '}
-            <span className="font-semibold text-[var(--color-primary)]">Details</span> on any row
-            to expand the specific problem and see the recommended action. Expand all rows with
-            issues before making an approval decision.
+            Rows with issues are highlighted and open by default. Use the chevron on each row to
+            collapse or expand the full explanation, quantity comparison, and recommended action.
           </p>
         </div>
       )}
 
-      {/* ── Primary allocation plan (table) ── */}
       <GroupSection group={selectedGroup} validation={validation} isPrimary />
 
-      {/* ── Alternative plans ── */}
       {otherGroups.length > 0 && (
         <div className="space-y-3">
           <p className="text-xs font-semibold uppercase tracking-widest text-[var(--color-muted-foreground)]">

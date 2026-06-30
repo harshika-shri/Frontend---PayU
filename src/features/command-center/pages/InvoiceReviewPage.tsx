@@ -686,8 +686,16 @@ export const InvoiceReviewPage: React.FC = () => {
               }}
             />
           )}
-          {resolvedTab === 'extraction' && <ExtractionTab extraction={extraction} />}
-          {resolvedTab === 'validation' && <ValidationTab validation={validation} />}
+          {resolvedTab === 'extraction' && (
+            <ExtractionTab extraction={extraction} header={header} />
+          )}
+          {resolvedTab === 'validation' && (
+            <ValidationTab
+              validation={validation}
+              header={header}
+              extraction={extraction}
+            />
+          )}
           {resolvedTab === 'draft' && (
             <DraftTab
               invoiceId={invoiceId}
