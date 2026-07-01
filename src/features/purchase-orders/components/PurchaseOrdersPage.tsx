@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Upload, RefreshCw, Eye, ChevronDown, ChevronRight } from 'lucide-react';
 import { PageHeader } from '../../../components/ui/PageHeader';
@@ -69,6 +69,20 @@ export const PurchaseOrdersPage: React.FC = () => {
 
     return Array.from(groups.entries()).sort(([a], [b]) => b.localeCompare(a));
   }, [filteredItems]);
+
+  const groupedDayKeys = useMemo(
+    () => groupedByDay.map(([dayKey]) => dayKey).join('|'),
+    [groupedByDay],
+  );
+
+  useEffect(() => {
+    if (groupedByDay.length === 0) {
+      setExpandedDays(new Set());
+      return;
+    }
+
+    setExpandedDays(new Set([groupedByDay[0][0]]));
+  }, [groupedDayKeys, groupedByDay]);
 
   const toggleDay = (dayKey: string) => {
     setExpandedDays((prev) => {

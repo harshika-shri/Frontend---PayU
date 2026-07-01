@@ -1,5 +1,6 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import Cookies from 'js-cookie';
 import {
   ArrowLeft,
   CheckCircle2,
@@ -22,6 +23,7 @@ import {
   useUpdateExtraction,
   useApproveExtraction,
 } from '../hooks/useExtractionReview';
+import { env } from '../../../config/env';
 import type {
   BankDetailsReview,
   CompanyDetailsReview,
@@ -46,6 +48,46 @@ export const ExtractionReviewPage: React.FC = () => {
   const [bank, setBank] = useState<BankDetailsReview | null>(null);
   const [lineItems, setLineItems] = useState<LineItemReview[]>([]);
   const [confirmApprove, setConfirmApprove] = useState(false);
+  const [docUrl, setDocUrl] = useState<string | undefined>();
+  const [docFileType, setDocFileType] = useState<'pdf' | 'image' | null>(null);
+  const blobUrlRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!invoiceId) return;
+
+    const token = Cookies.get('access_token');
+
+    fetch(`${env.docExtractionUrl}/invoices/${invoiceId}/document`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    })
+      .then((response) => {
+        if (!response.ok) return null;
+        const contentType = response.headers.get('content-type') ?? '';
+        if (contentType.includes('pdf')) {
+          setDocFileType('pdf');
+        } else if (contentType.startsWith('image/')) {
+          setDocFileType('image');
+        }
+        return response.blob();
+      })
+      .then((blob) => {
+        if (!blob) return;
+        const url = URL.createObjectURL(blob);
+        blobUrlRef.current = url;
+        setDocUrl(url);
+      })
+      .catch(() => {
+        setDocUrl(undefined);
+        setDocFileType(null);
+      });
+
+    return () => {
+      if (blobUrlRef.current) {
+        URL.revokeObjectURL(blobUrlRef.current);
+        blobUrlRef.current = null;
+      }
+    };
+  }, [invoiceId]);
 
   // Seed state when data loads
   useEffect(() => {
@@ -211,6 +253,9 @@ export const ExtractionReviewPage: React.FC = () => {
         {/* Left — Document Viewer (40%) */}
         <div className="w-[42%] flex-shrink-0 min-h-0">
           <DocumentViewer
+            fileUrl={docUrl}
+            fileType={docFileType}
+            fitContainer
             className="h-full"
           />
         </div>
