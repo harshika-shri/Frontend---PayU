@@ -9,7 +9,10 @@ import { RejectDialog } from './RejectDialog';
 import { useTakeOwnership } from '../hooks/useWorkflowActions';
 import { useAuth } from '../../auth/hooks/useAuth';
 import { UserRole } from '../../auth/constants/userRole';
-import type { InvoiceHeaderResponse } from '../types/invoiceReview.types';
+import type {
+  InvoiceHeaderResponse,
+  InvoiceValidationResponse,
+} from '../types/invoiceReview.types';
 import { canApproveWithValidationOutcome } from '../utils/validationOutcomeUtils';
 
 const norm = (s: string | null | undefined) =>
@@ -63,6 +66,7 @@ const CAN_CLAIM = new Set([
 interface InvoiceActionsPanelProps {
   invoiceId: string;
   header: InvoiceHeaderResponse;
+  validation?: InvoiceValidationResponse;
   bucket?: string;
   /** compact = inline horizontal buttons for the top bar */
   compact?: boolean;
@@ -71,6 +75,7 @@ interface InvoiceActionsPanelProps {
 export const InvoiceActionsPanel: React.FC<InvoiceActionsPanelProps> = ({
   invoiceId,
   header,
+  validation,
   bucket,
   compact = false,
 }) => {
@@ -94,7 +99,7 @@ export const InvoiceActionsPanel: React.FC<InvoiceActionsPanelProps> = ({
   const showApprove =
     CAN_APPROVE.has(status) ||
     ((status === 'under_review' || status === 'escalated') &&
-      canApproveWithValidationOutcome(outcome));
+      canApproveWithValidationOutcome(outcome, validation));
 
   // Clarify is mutually exclusive with Approve — never show both at once
   const showClarification = CAN_CLARIFY.has(status) && !showApprove;

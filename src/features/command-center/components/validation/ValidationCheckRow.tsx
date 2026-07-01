@@ -4,6 +4,7 @@ import {
   ChevronDown,
   ChevronRight,
   Info,
+  MinusCircle,
   RotateCcw,
   ShieldAlert,
   ShieldCheck,
@@ -253,10 +254,18 @@ export const ValidationCheckRow: React.FC<ValidationCheckRowProps> = ({
 };
 
 export const ValidationSeverityIcon: React.FC<{
-  status: 'passed' | 'warning' | 'issues';
+  status: 'passed' | 'warning' | 'issues' | 'skipped' | 'partial';
 }> = ({ status }) => {
   if (status === 'passed') {
     return <CheckCircle2 className="h-4 w-4 text-[var(--color-success)]" />;
+  }
+
+  if (status === 'skipped') {
+    return <MinusCircle className="h-4 w-4 text-[var(--color-muted-foreground)]" />;
+  }
+
+  if (status === 'partial') {
+    return <Info className="h-4 w-4 text-[var(--color-warning)]" />;
   }
 
   if (status === 'warning') {

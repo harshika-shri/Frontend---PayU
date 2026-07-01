@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { GitBranch, Layers3 } from 'lucide-react';
 import { Badge } from '../../../../components/ui/Badge';
 import { cn } from '../../../../utils/cn';
@@ -37,8 +37,10 @@ interface ValidationIssuesSectionProps {
 
 const getStageStatusLabel = (
   issueCount: number,
-  status: 'passed' | 'warning' | 'issues',
+  status: 'passed' | 'warning' | 'issues' | 'skipped' | 'partial',
 ): string => {
+  if (status === 'skipped') return 'Skipped';
+  if (status === 'partial') return 'Partial validation';
   if (status === 'passed') return 'Passed';
   if (issueCount === 1) return '1 issue';
   return `${issueCount} issues`;
@@ -61,8 +63,12 @@ export const ValidationIssuesSection: React.FC<ValidationIssuesSectionProps> = (
   );
 
   const stageSummaries = useMemo(
-    () => buildValidationStageSummaries(validation.issues),
-    [validation.issues],
+    () =>
+      buildValidationStageSummaries(
+        validation.issues,
+        validation.review_summary?.validation_steps_json,
+      ),
+    [validation.issues, validation.review_summary?.validation_steps_json],
   );
 
   const severityGroups = useMemo(
@@ -102,6 +108,34 @@ export const ValidationIssuesSection: React.FC<ValidationIssuesSectionProps> = (
                 : `${issues.length} issues`,
           };
         });
+
+  useEffect(() => {
+    if (navigatorItems.length === 0) {
+      return;
+    }
+
+    if (viewMode === 'step') {
+      if (
+        selectedStageId === null ||
+        !navigatorItems.some((item) => item.id === selectedStageId)
+      ) {
+        setSelectedStageId(navigatorItems[0].id);
+      }
+      return;
+    }
+
+    if (
+      selectedSeverity === null ||
+      !navigatorItems.some((item) => item.id === selectedSeverity)
+    ) {
+      setSelectedSeverity(navigatorItems[0].id as IssueSeverity);
+    }
+  }, [
+    navigatorItems,
+    selectedSeverity,
+    selectedStageId,
+    viewMode,
+  ]);
 
   const handleModeChange = (mode: ValidationViewMode) => {
     setViewMode(mode);

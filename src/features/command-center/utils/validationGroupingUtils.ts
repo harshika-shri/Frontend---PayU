@@ -59,7 +59,14 @@ export const SEVERITY_DESCRIPTIONS: Record<IssueSeverity, string> = {
   low: 'Informational or resolved findings',
 };
 
-export type StageSummaryStatus = 'passed' | 'warning' | 'issues';
+export type StageSummaryStatus = 'passed' | 'warning' | 'issues' | 'skipped' | 'partial';
+
+export type ValidationStepStatus =
+  | 'passed'
+  | 'failed'
+  | 'warning'
+  | 'skipped'
+  | 'partial';
 
 export interface ValidationStageSummary {
   stageId: string;
@@ -70,6 +77,7 @@ export interface ValidationStageSummary {
   passedCount: number;
   failedCount: number;
   issues: ValidationIssueDetails[];
+  executionStatus?: ValidationStepStatus;
 }
 
 export const getValidationStageLabel = (stageId: string): string =>
@@ -95,8 +103,20 @@ export const groupIssuesByStage = (
   return grouped;
 };
 
+const mapExecutionStatus = (
+  executionStatus?: ValidationStepStatus,
+): StageSummaryStatus | null => {
+  if (!executionStatus) return null;
+  if (executionStatus === 'skipped') return 'skipped';
+  if (executionStatus === 'partial') return 'partial';
+  if (executionStatus === 'passed') return 'passed';
+  if (executionStatus === 'warning') return 'warning';
+  return 'issues';
+};
+
 export const buildValidationStageSummaries = (
   issues: ValidationIssueDetails[],
+  validationSteps?: Record<string, string>,
 ): ValidationStageSummary[] => {
   const grouped = groupIssuesByStage(issues);
   const knownStages = new Set<string>(VALIDATION_STAGE_ORDER);
@@ -118,14 +138,25 @@ export const buildValidationStageSummaries = (
       (issue) => getIssueSeverity(issue) === 'high' || getIssueSeverity(issue) === 'medium',
     );
 
+    const executionStatus = validationSteps?.[stageId] as ValidationStepStatus | undefined;
+    const executionMapped = mapExecutionStatus(executionStatus);
+
     let status: StageSummaryStatus = 'passed';
 
-    if (unresolvedIssues.some((issue) => getIssueSeverity(issue) === 'critical')) {
+    if (executionMapped === 'skipped') {
+      status = 'skipped';
+    } else if (executionMapped === 'partial') {
+      status = 'partial';
+    } else if (unresolvedIssues.some((issue) => getIssueSeverity(issue) === 'critical')) {
       status = 'issues';
     } else if (unresolvedIssues.length > 0) {
       status = warningIssues.length > 0 ? 'warning' : 'issues';
     } else if (failedIssues.length > 0) {
       status = 'warning';
+    } else if (executionMapped === 'warning') {
+      status = 'warning';
+    } else if (executionMapped === 'issues') {
+      status = 'issues';
     }
 
     return {
@@ -137,6 +168,7 @@ export const buildValidationStageSummaries = (
       passedCount: passedIssues.length,
       failedCount: failedIssues.length,
       issues: stageIssues,
+      executionStatus,
     };
   });
 };

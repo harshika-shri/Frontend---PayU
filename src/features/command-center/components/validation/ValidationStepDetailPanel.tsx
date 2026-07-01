@@ -52,7 +52,11 @@ export const ValidationStepDetailPanel: React.FC<ValidationStepDetailPanelProps>
           <h3 className="text-base font-semibold text-[var(--color-foreground)]">
             {stage.label}
           </h3>
-          {stage.issueCount > 0 ? (
+          {stage.status === 'skipped' ? (
+            <Badge variant="secondary">Skipped</Badge>
+          ) : stage.status === 'partial' ? (
+            <Badge variant="warning">Partial</Badge>
+          ) : stage.issueCount > 0 ? (
             <Badge variant="destructive">{stage.issueCount} open</Badge>
           ) : (
             <Badge variant="success">Passed</Badge>
@@ -60,10 +64,18 @@ export const ValidationStepDetailPanel: React.FC<ValidationStepDetailPanelProps>
         </div>
         <p className="mt-1 text-sm text-[var(--color-muted-foreground)]">
           {stage.description}
+          {stage.status === 'skipped' &&
+            ' This step was not run because an earlier validation gate stopped the full workflow.'}
+          {stage.status === 'partial' &&
+            ' Only invoice math was checked here. Purchase order price and quantity comparisons were skipped because PO or line mapping is ambiguous.'}
         </p>
       </div>
 
-      {checkResults.length === 0 ? (
+      {stage.status === 'skipped' ? (
+        <p className="text-sm text-[var(--color-muted-foreground)]">
+          No checks were executed for this step.
+        </p>
+      ) : checkResults.length === 0 ? (
         <p className="text-sm text-[var(--color-muted-foreground)]">
           No checks apply to this invoice for this step.
         </p>

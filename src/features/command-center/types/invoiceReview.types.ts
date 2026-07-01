@@ -107,6 +107,7 @@ export interface ReviewSummaryDetails {
   system_recoveries_json: unknown[];
   open_issues_json: unknown[];
   vendor_clarifications_json: unknown[];
+  validation_steps_json?: Record<string, string>;
   generated_at: string;
 }
 

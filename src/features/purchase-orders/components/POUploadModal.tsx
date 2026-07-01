@@ -15,7 +15,6 @@ export const POUploadModal: React.FC<POUploadModalProps> = ({ open, onClose }) =
   const { upload, cancel, isPending } = useUploadPurchaseOrder();
 
   const handleClose = () => {
-    if (isPending) return;
     setFile(null);
     onClose();
   };
@@ -30,9 +29,11 @@ export const POUploadModal: React.FC<POUploadModalProps> = ({ open, onClose }) =
 
   const handleSubmit = async () => {
     if (!file) return;
+    const selectedFile = file;
+    setFile(null);
+    onClose();
     try {
-      await upload(file);
-      handleClose();
+      await upload(selectedFile);
     } catch {
       // error handled in hook
     }

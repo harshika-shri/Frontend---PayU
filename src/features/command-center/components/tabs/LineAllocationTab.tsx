@@ -49,7 +49,10 @@ interface MappingIssue {
   severity: 'error' | 'warning';
 }
 
-const getMappingIssues = (item: LineAllocationCandidateItemDetails): MappingIssue[] => {
+const getMappingIssues = (
+  item: LineAllocationCandidateItemDetails,
+  groupItems: LineAllocationCandidateItemDetails[] = [],
+): MappingIssue[] => {
   const issues: MappingIssue[] = [];
   const type = item.candidate_type.toLowerCase();
 
@@ -76,18 +79,43 @@ const getMappingIssues = (item: LineAllocationCandidateItemDetails): MappingIssu
     });
   }
 
-  if (!qtyClose(item.allocated_quantity, item.invoice_line_item.quantity_billed)) {
+  const siblings = (
+    groupItems.length > 0 ? groupItems : [item]
+  ).filter(
+    (candidate) =>
+      candidate.invoice_line_item_id === item.invoice_line_item_id,
+  );
+  const totalAllocated = siblings.reduce(
+    (sum, candidate) => sum + candidate.allocated_quantity,
+    0,
+  );
+  const isSplitAcrossPos = siblings.length > 1;
+  const isPrimarySplitRow =
+    siblings[0]?.id === item.id || siblings.findIndex((s) => s.id === item.id) === 0;
+
+  if (
+    !qtyClose(totalAllocated, item.invoice_line_item.quantity_billed) &&
+    (!isSplitAcrossPos || isPrimarySplitRow)
+  ) {
     issues.push({
       key: `qtymm-${item.id}`,
       type: 'qty_mismatch',
       title: 'Quantity discrepancy',
-      message: `Invoice bills ${item.invoice_line_item.quantity_billed} units, but only ${item.allocated_quantity} were allocated to this PO line.`,
+      message: isSplitAcrossPos
+        ? `Invoice bills ${item.invoice_line_item.quantity_billed} units, but only ${totalAllocated} were allocated across the matched PO lines.`
+        : `Invoice bills ${item.invoice_line_item.quantity_billed} units, but only ${item.allocated_quantity} were allocated to this PO line.`,
       severity: 'warning',
     });
   }
 
   return issues;
 };
+
+const LINE_ITEM_VALIDATION_STAGES = new Set([
+  'line_item_validation',
+  'po_resolution',
+  'amount_validation',
+]);
 
 const getRelatedValidationIssues = (
   item: LineAllocationCandidateItemDetails,
@@ -106,15 +134,15 @@ const getRelatedValidationIssues = (
 
   return validation.issues.filter((issue) => {
     if (!isUnresolvedIssue(issue)) return false;
+
     const stage = (issue.check_stage ?? '').toLowerCase();
-    if (stage === 'line_items' || stage === 'line_item' || stage === 'po') {
-      const blob =
-        `${issue.field_name ?? ''} ${issue.description} ${issue.check_name}`.toLowerCase();
-      if (needles.some((n) => n.length > 2 && blob.includes(n))) return true;
-      if (stage === 'line_items' || stage === 'line_item') return true;
+    if (!LINE_ITEM_VALIDATION_STAGES.has(stage)) {
+      return false;
     }
+
     const blob =
       `${issue.field_name ?? ''} ${issue.description} ${issue.check_name}`.toLowerCase();
+
     return needles.some((n) => n.length > 2 && blob.includes(n));
   });
 };
@@ -504,10 +532,11 @@ const ValidationIssueDetail: React.FC<{
 
 const MappingRow: React.FC<{
   item: LineAllocationCandidateItemDetails;
+  groupItems: LineAllocationCandidateItemDetails[];
   validation?: InvoiceValidationResponse;
   index: number;
-}> = ({ item, validation, index }) => {
-  const mappingIssues = getMappingIssues(item);
+}> = ({ item, groupItems, validation, index }) => {
+  const mappingIssues = getMappingIssues(item, groupItems);
   const validationIssues = getRelatedValidationIssues(item, validation);
   const hasIssues = mappingIssues.length > 0 || validationIssues.length > 0;
   const hasCritical =
@@ -703,7 +732,7 @@ const GroupSection: React.FC<{
 }> = ({ group, validation, isPrimary }) => {
   const itemsWithIssues = group.items.filter(
     (item) =>
-      getMappingIssues(item).length > 0 ||
+      getMappingIssues(item, group.items).length > 0 ||
       getRelatedValidationIssues(item, validation).length > 0,
   );
 
@@ -781,6 +810,7 @@ const GroupSection: React.FC<{
             <MappingRow
               key={item.id}
               item={item}
+              groupItems={group.items}
               validation={validation}
               index={index}
             />
@@ -802,7 +832,50 @@ export const LineAllocationTab: React.FC<LineAllocationTabProps> = ({
   lineAllocation,
   validation,
 }) => {
+  const lineItemValidationIssues =
+    validation?.issues.filter(
+      (issue) =>
+        isUnresolvedIssue(issue) &&
+        LINE_ITEM_VALIDATION_STAGES.has((issue.check_stage ?? '').toLowerCase()),
+    ) ?? [];
+
   if (!lineAllocation.candidate_groups.length) {
+    if (lineItemValidationIssues.length > 0) {
+      return (
+        <div className="space-y-4">
+          <div className="rounded-lg border border-amber-200 bg-amber-50/40 px-4 py-3">
+            <div className="flex items-start gap-2">
+              <AlertTriangle className="h-4 w-4 text-amber-600 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-semibold text-amber-900">
+                  Line item mapping could not be confirmed automatically
+                </p>
+                <p className="text-sm text-amber-900/80 mt-1 leading-relaxed">
+                  A purchase order may have been recovered, but the system could not produce a
+                  single valid invoice-to-PO line mapping. Review the findings below and any
+                  proposed allocation plans once validation is re-run.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-lg border border-red-200 overflow-hidden">
+            <div className="px-4 py-2.5 bg-red-50 border-b border-red-200 flex items-center gap-2">
+              <XCircle className="h-4 w-4 text-red-600" />
+              <h3 className="text-xs font-semibold uppercase tracking-widest text-red-900">
+                Mapping Issues
+              </h3>
+            </div>
+            <div className="p-4 space-y-3 bg-white">
+              {lineItemValidationIssues.map((issue) => (
+                <ValidationIssueDetail key={issue.id} issue={issue} />
+              ))}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
         <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[var(--color-muted)] border border-[var(--color-border)]">
@@ -829,46 +902,71 @@ export const LineAllocationTab: React.FC<LineAllocationTabProps> = ({
   const allItems = selectedGroup.items;
   const itemsWithIssues = allItems.filter(
     (item) =>
-      getMappingIssues(item).length > 0 ||
+      getMappingIssues(item, selectedGroup.items).length > 0 ||
       getRelatedValidationIssues(item, validation).length > 0,
   );
   const cleanItems = allItems.length - itemsWithIssues.length;
   const healthPct = allItems.length > 0 ? Math.round((cleanItems / allItems.length) * 100) : 100;
 
-  const lineItemValidationIssues =
-    validation?.issues.filter(
+  const hasAmbiguousAllocation =
+    lineItemValidationIssues.some(
       (issue) =>
-        isUnresolvedIssue(issue) &&
-        ['line_items', 'line_item', 'po', 'line_item_validation', 'po_resolution'].includes(
-          (issue.check_stage ?? '').toLowerCase(),
-        ),
-    ) ?? [];
+        (issue.metadata?.issue_code as string | undefined)?.toUpperCase() ===
+          'AMBIGUOUS_LINE_MATCH' ||
+        issue.description.toLowerCase().includes('multiple valid allocation'),
+    ) ||
+    lineAllocation.candidate_groups.some(
+      (group) => group.candidate_type.toLowerCase() === 'ambiguous',
+    ) ||
+    lineAllocation.candidate_groups.length > 1;
 
   const hasCriticalIssues =
     itemsWithIssues.some((item) =>
-      getMappingIssues(item).some((i) => i.severity === 'error'),
-    ) || lineItemValidationIssues.length > 0;
+      getMappingIssues(item, selectedGroup.items).some((i) => i.severity === 'error'),
+    ) ||
+    lineItemValidationIssues.some(
+      (issue) =>
+        (issue.metadata?.issue_code as string | undefined)?.toUpperCase() !==
+        'AMBIGUOUS_LINE_MATCH',
+    );
 
   return (
     <div className="space-y-5">
+      {hasAmbiguousAllocation && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50/40 px-4 py-3">
+          <div className="flex items-start gap-2">
+            <HelpCircle className="h-4 w-4 text-amber-600 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-semibold text-amber-900">
+                Quantity allocation is ambiguous across purchase orders
+              </p>
+              <p className="text-sm text-amber-900/80 mt-1 leading-relaxed">
+                The PO numbers are correct, but more than one valid way exists to
+                split billed quantities across the referenced purchase orders. Contact
+                the vendor to confirm how many units belong to each PO, then select
+                the matching allocation plan below.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div
         className={cn(
           'rounded-lg border p-4',
           hasCriticalIssues
             ? 'border-red-200 bg-red-50/40'
-            : itemsWithIssues.length > 0
+            : hasAmbiguousAllocation || itemsWithIssues.length > 0
             ? 'border-amber-200 bg-amber-50/40'
             : 'border-green-200 bg-green-50/40',
         )}
       >
         <div className="flex items-center justify-between gap-4 mb-3">
           <div className="flex items-center gap-2">
-            {itemsWithIssues.length === 0 ? (
-              <CheckCircle2 className="h-5 w-5 text-green-600" />
-            ) : hasCriticalIssues ? (
-              <XCircle className="h-5 w-5 text-red-600" />
-            ) : (
+            {hasAmbiguousAllocation || itemsWithIssues.length > 0 ? (
               <AlertTriangle className="h-5 w-5 text-amber-600" />
+            ) : (
+              <CheckCircle2 className="h-5 w-5 text-green-600" />
             )}
             <div>
               <p
@@ -881,7 +979,9 @@ export const LineAllocationTab: React.FC<LineAllocationTabProps> = ({
                     : 'text-green-900',
                 )}
               >
-                {itemsWithIssues.length === 0
+                {hasAmbiguousAllocation
+                  ? 'Multiple valid quantity allocations need vendor confirmation'
+                  : itemsWithIssues.length === 0
                   ? 'All line mappings are consistent'
                   : hasCriticalIssues
                   ? `${itemsWithIssues.length} line${itemsWithIssues.length > 1 ? 's' : ''} require action`
@@ -939,11 +1039,35 @@ export const LineAllocationTab: React.FC<LineAllocationTabProps> = ({
         </div>
       </div>
 
-      {lineItemValidationIssues.length > 0 && itemsWithIssues.length === 0 && (
-        <div className="rounded-lg border border-red-200 overflow-hidden">
-          <div className="px-4 py-2.5 bg-red-50 border-b border-red-200 flex items-center gap-2">
-            <XCircle className="h-4 w-4 text-red-600" />
-            <h3 className="text-xs font-semibold uppercase tracking-widest text-red-900">
+      {lineItemValidationIssues.length > 0 &&
+        (itemsWithIssues.length === 0 || hasAmbiguousAllocation) && (
+        <div
+          className={cn(
+            'rounded-lg border overflow-hidden',
+            hasAmbiguousAllocation
+              ? 'border-amber-200'
+              : 'border-red-200',
+          )}
+        >
+          <div
+            className={cn(
+              'px-4 py-2.5 border-b flex items-center gap-2',
+              hasAmbiguousAllocation
+                ? 'bg-amber-50 border-amber-200'
+                : 'bg-red-50 border-red-200',
+            )}
+          >
+            {hasAmbiguousAllocation ? (
+              <AlertTriangle className="h-4 w-4 text-amber-600" />
+            ) : (
+              <XCircle className="h-4 w-4 text-red-600" />
+            )}
+            <h3
+              className={cn(
+                'text-xs font-semibold uppercase tracking-widest',
+                hasAmbiguousAllocation ? 'text-amber-900' : 'text-red-900',
+              )}
+            >
               Line Item Validation Issues
             </h3>
           </div>

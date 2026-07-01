@@ -9,6 +9,20 @@ const asStringList = (value: unknown): string[] => {
     .filter(Boolean);
 };
 
+const dedupePoints = (points: string[]): string[] => {
+  const seen = new Set<string>();
+  const unique: string[] = [];
+
+  for (const point of points) {
+    const normalized = point.trim();
+    if (!normalized || seen.has(normalized)) continue;
+    seen.add(normalized);
+    unique.push(normalized);
+  }
+
+  return unique;
+};
+
 export const buildClarificationDraft = (
   invoiceId: string,
   invoiceNumber: string | null | undefined,
@@ -26,12 +40,13 @@ export const buildClarificationDraft = (
 
   const openSummaryIssues = asStringList(validation.review_summary?.open_issues_json);
 
-  const clarificationPoints =
-    vendorClarifications.length > 0
-      ? vendorClarifications
-      : unresolvedDescriptions.length > 0
+  const clarificationPoints = dedupePoints([
+    ...vendorClarifications,
+    ...openSummaryIssues,
+    ...(vendorClarifications.length === 0 && openSummaryIssues.length === 0
       ? unresolvedDescriptions
-      : openSummaryIssues;
+      : []),
+  ]);
 
   if (clarificationPoints.length === 0) {
     return null;

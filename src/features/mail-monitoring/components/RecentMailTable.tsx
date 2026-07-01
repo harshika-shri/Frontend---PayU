@@ -90,7 +90,7 @@ export const RecentMailTable: React.FC<RecentMailTableProps> = ({
             <tbody className="divide-y divide-[var(--color-border)]">
               {items.map((item) => (
                 <tr
-                  key={item.message_id}
+                  key={`${item.message_id}-${item.invoice_id ?? item.attachment_filename ?? 'none'}`}
                   className="hover:bg-[var(--color-muted)]/50 transition-colors"
                 >
                   <td className="px-6 py-4">

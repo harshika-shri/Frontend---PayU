@@ -88,8 +88,8 @@ const RECOMMENDED_ACTIONS: Record<string, string> = {
     'Review the candidate PO list and select the correct purchase order based on business context.',
   PO_UNRESOLVED:
     'Request an updated invoice with the correct PO reference or upload the matching purchase order.',
-  INVALID_PO_REFERENCE:
-    'Confirm the matched purchase order(s) are correct before approving payment.',
+  AMBIGUOUS_LINE_MATCH:
+    'Contact the vendor to confirm how many units should be billed against each purchase order, then select the matching allocation plan.',
   QUANTITY_EXCEEDS_ORDERED:
     'Request a revised invoice or confirm whether the over-quantity billing is acceptable.',
   QUANTITY_EXCEEDS_REMAINING:

@@ -335,13 +335,23 @@ export const VALIDATION_CHECK_CATALOG: Record<
   ],
 };
 
+const VALIDATION_STAGE_ALIASES: Record<string, string> = {
+  company_name_missing: 'company_details_missing',
+  company_gstin_missing: 'company_details_missing',
+  company_address_missing: 'company_details_missing',
+  vendor_name_missing: 'vendor_details_missing',
+  vendor_gstin_missing: 'vendor_details_missing',
+  vendor_address_missing: 'vendor_details_missing',
+};
+
 export const getCheckDefinition = (
   stageId: string,
   checkName: string,
 ): ValidationCheckDefinition => {
   const catalog = VALIDATION_CHECK_CATALOG[stageId] ?? [];
+  const normalizedCheckName = VALIDATION_STAGE_ALIASES[checkName] ?? checkName;
   const match = catalog.find(
-    (definition) => definition.checkName === checkName,
+    (definition) => definition.checkName === normalizedCheckName,
   );
 
   if (match) {

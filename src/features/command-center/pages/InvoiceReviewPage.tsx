@@ -627,6 +627,7 @@ export const InvoiceReviewPage: React.FC = () => {
         <InvoiceActionsPanel
           invoiceId={invoiceId}
           header={header}
+          validation={validation}
           bucket={bucket}
           compact
         />

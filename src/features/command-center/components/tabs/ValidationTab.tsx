@@ -16,20 +16,10 @@ export const ValidationTab: React.FC<ValidationTabProps> = ({
   validation,
   header,
   extraction,
-}) => {
-  if (validation.issues.length === 0) {
-    return (
-      <p className="text-sm text-[var(--color-muted-foreground)] text-center py-8">
-        No validation results available for this invoice.
-      </p>
-    );
-  }
-
-  return (
-    <ValidationIssuesSection
-      validation={validation}
-      header={header}
-      extraction={extraction}
-    />
-  );
-};
+}) => (
+  <ValidationIssuesSection
+    validation={validation}
+    header={header}
+    extraction={extraction}
+  />
+);

@@ -8,6 +8,24 @@ export type IssueSeverity = 'critical' | 'high' | 'medium' | 'low';
 const RESOLVED_STATUSES = new Set(['resolved', 'waived', 'pass', 'passed']);
 const PASSED_STATUSES = new Set(['resolved', 'waived', 'pass', 'passed', 'ok']);
 
+const RECOVERABLE_ISSUE_CODES = new Set([
+  'MISSING_INVOICE_NUMBER',
+  'VENDOR_NOT_FOUND',
+  'PO_MISSING',
+  'PO_RECOVERED',
+  'INVALID_PO_REFERENCE',
+]);
+
+const RECOVERY_CONFIRMATION_OPEN_CODES = new Set(['PO_RECOVERED']);
+
+const getIssueCode = (issue: ValidationIssueDetails): string | null => {
+  const metadataCode = issue.metadata?.issue_code;
+  if (typeof metadataCode === 'string' && metadataCode.trim()) {
+    return metadataCode.trim().toUpperCase();
+  }
+  return null;
+};
+
 export const isPassedIssue = (issue: ValidationIssueDetails): boolean =>
   PASSED_STATUSES.has((issue.status ?? '').toLowerCase());
 
@@ -25,6 +43,23 @@ export const isWarningIssue = (issue: ValidationIssueDetails): boolean => {
 export const getIssueSeverity = (issue: ValidationIssueDetails): IssueSeverity => {
   const status = (issue.status ?? '').toLowerCase();
   const issueType = (issue.issue_type ?? '').toLowerCase();
+  const issueCode = getIssueCode(issue);
+
+  if (
+    status === 'resolved' ||
+    status === 'waived' ||
+    status === 'pass' ||
+    status === 'passed'
+  ) {
+    if (issueCode && RECOVERABLE_ISSUE_CODES.has(issueCode)) {
+      return 'medium';
+    }
+    return 'low';
+  }
+
+  if (issueCode && RECOVERY_CONFIRMATION_OPEN_CODES.has(issueCode)) {
+    return 'high';
+  }
 
   if (
     ['invalid', 'missing', 'mismatch', 'duplicate', 'ambiguous'].includes(issueType)
@@ -46,10 +81,6 @@ export const getIssueSeverity = (issue: ValidationIssueDetails): IssueSeverity =
 
   if (status === 'warning' || status === 'warn' || issueType === 'warning') {
     return 'high';
-  }
-
-  if (status === 'resolved' || status === 'waived' || status === 'pass' || status === 'passed') {
-    return 'low';
   }
 
   return 'medium';

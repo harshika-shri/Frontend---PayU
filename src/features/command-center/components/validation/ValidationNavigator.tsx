@@ -8,7 +8,7 @@ export type ValidationViewMode = 'step' | 'severity';
 interface NavigatorItem {
   id: string;
   label: string;
-  status: 'passed' | 'warning' | 'issues';
+  status: 'passed' | 'warning' | 'issues' | 'skipped' | 'partial';
   issueCount: number;
   statusLabel: string;
 }
@@ -50,8 +50,10 @@ export const ValidationNavigator: React.FC<ValidationNavigatorProps> = ({
                 'text-[11px] mt-0.5',
                 item.status === 'passed'
                   ? 'text-[var(--color-success)]'
-                  : item.status === 'warning'
+                  : item.status === 'warning' || item.status === 'partial'
                   ? 'text-[var(--color-warning)]'
+                  : item.status === 'skipped'
+                  ? 'text-[var(--color-muted-foreground)]'
                   : 'text-[var(--color-destructive)]',
               )}
             >

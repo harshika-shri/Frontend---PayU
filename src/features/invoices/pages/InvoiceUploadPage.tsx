@@ -7,7 +7,6 @@ import { Card } from '../../../components/ui/Card';
 import { FileDropzone } from '../../../components/ui/FileDropzone';
 import { Spinner } from '../../../components/ui/Spinner';
 import { useInvoiceUpload } from '../hooks/useInvoiceUpload';
-import toast from 'react-hot-toast';
 
 export const InvoiceUploadPage: React.FC = () => {
   const navigate = useNavigate();
@@ -19,15 +18,9 @@ export const InvoiceUploadPage: React.FC = () => {
     try {
       const result = await upload(file);
       if (result.document_type !== 'invoice') {
-        toast.error(
-          `Document classified as "${result.document_type}", not an invoice. Please upload an invoice document.`,
-          { duration: 6000 },
-        );
         reset();
         setFile(null);
-        return;
       }
-      toast.success('Invoice extracted successfully.');
     } catch {
       // error handled in hook
     }
@@ -56,7 +49,7 @@ export const InvoiceUploadPage: React.FC = () => {
                   </p>
                 )}
               </div>
-              <div className="flex gap-3 pt-2">
+              <div className="flex gap-3 pt-2 justify-center">
                 <Button
                   variant="outline"
                   size="sm"
@@ -66,21 +59,13 @@ export const InvoiceUploadPage: React.FC = () => {
                 </Button>
                 {data.invoice_id &&
                   (data.extraction_status === 'human_review_needed' ||
-                    data.extraction_status === 'low_confidence') ? (
+                    data.extraction_status === 'low_confidence') && (
                   <Button
                     size="sm"
                     rightIcon={<ArrowRight className="h-4 w-4" />}
                     onClick={() => navigate(`/extraction-review/${data.invoice_id}`)}
                   >
                     Review extraction
-                  </Button>
-                ) : (
-                  <Button
-                    size="sm"
-                    rightIcon={<ArrowRight className="h-4 w-4" />}
-                    onClick={() => navigate('/invoices/processing')}
-                  >
-                    View processing
                   </Button>
                 )}
               </div>
@@ -144,7 +129,8 @@ export const InvoiceUploadPage: React.FC = () => {
             <p className="font-medium">Extraction notice</p>
             <p>
               AI extraction takes 15–60 seconds depending on document complexity. Fields with
-              low confidence will be flagged for your review before approval.
+              low confidence will be flagged for your review before approval. You can navigate
+              to other pages while processing continues in the background.
             </p>
           </div>
         </div>
